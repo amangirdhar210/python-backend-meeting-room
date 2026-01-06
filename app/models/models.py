@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional, List
+from pydantic import BaseModel
 
 
-@dataclass
-class User:
+class User(BaseModel):
     id: str
     name: str
     email: str
@@ -13,8 +13,7 @@ class User:
     updated_at: int
 
 
-@dataclass
-class Room:
+class Room(BaseModel):
     id: str
     name: str
     room_number: int
@@ -28,8 +27,7 @@ class Room:
     updated_at: int
 
 
-@dataclass
-class Booking:
+class Booking(BaseModel):
     id: str
     user_id: str
     user_name: str
@@ -43,15 +41,13 @@ class Booking:
     updated_at: int
 
 
-@dataclass
-class TimeSlot:
+class TimeSlot(BaseModel):
     start_time: int
     end_time: int
     duration: int
 
 
-@dataclass
-class BookingWithDetails:
+class BookingWithDetails(BaseModel):
     id: str
     user_id: str
     user_name: str
@@ -67,8 +63,7 @@ class BookingWithDetails:
     room_name: str
 
 
-@dataclass
-class ScheduleSlot:
+class ScheduleSlot(BaseModel):
     start_time: str
     end_time: str
     is_booked: bool
@@ -77,8 +72,7 @@ class ScheduleSlot:
     purpose: Optional[str] = None
 
 
-@dataclass
-class RoomScheduleResponse:
+class RoomScheduleResponse(BaseModel):
     room_id: str
     room_name: str
     room_number: int
