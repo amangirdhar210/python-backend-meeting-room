@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 import uuid
 import time
 from boto3.dynamodb.conditions import Key, Attr
@@ -8,9 +8,9 @@ from app.utils.errors import NotFoundError
 
 class BookingRepository:
 
-    def __init__(self, dynamodb_client, table_name: str):
-        self.dynamodb = dynamodb_client
-        self.table = dynamodb_client.Table(table_name)
+    def __init__(self, dynamodb_client: Any, table_name: str) -> None:
+        self.dynamodb: Any = dynamodb_client
+        self.table: Any = dynamodb_client.Table(table_name)
 
     def create(self, booking: Booking) -> None:
         try:

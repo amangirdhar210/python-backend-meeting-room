@@ -6,8 +6,8 @@ class PasswordHasher:
     def hash_password(password: str) -> str:
         if not password:
             raise ValueError("Password cannot be empty")
-        salt = bcrypt.gensalt()
-        hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+        salt: bytes = bcrypt.gensalt()
+        hashed: bytes = bcrypt.hashpw(password.encode("utf-8"), salt)
         return hashed.decode("utf-8")
 
     @staticmethod
@@ -18,4 +18,4 @@ class PasswordHasher:
             return False
 
 
-password_hasher = PasswordHasher()
+password_hasher: PasswordHasher = PasswordHasher()

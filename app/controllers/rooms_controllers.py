@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
-from typing import Optional, List
+from fastapi import APIRouter, Depends, Query
+from typing import Optional, List, Dict, Any
 from app.services.rooms_service import RoomService
 from app.models.models import Room
 from app.models.pydantic_models import AddRoomRequest, RoomDTO, GenericResponse
@@ -8,106 +8,86 @@ from app.utils.auth_middleware import require_admin, require_user
 from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
 
 
-rooms_router = APIRouter(prefix="/api", tags=["Rooms"])
+rooms_router: APIRouter = APIRouter(prefix="/api", tags=["Rooms"])
 
 
 @rooms_router.post("/rooms", response_model=GenericResponse, status_code=201)
 async def add_room(
     request: AddRoomRequest,
     room_service: RoomService = Depends(get_room_service),
-    current_user: dict = Depends(require_admin),
-):
-    try:
-        room = Room(
-            id="",
-            name=request.name,
-            room_number=request.room_number,
-            capacity=request.capacity,
-            floor=request.floor,
-            amenities=request.amenities,
-            status=request.status or "available",
-            location=request.location,
-            description=request.description,
-            created_at=0,
-            updated_at=0,
-        )
-        room_service.add_room(room)
-        return GenericResponse(message="room added successfully")
-    except (InvalidInputError, ConflictError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    current_user: Dict[str, Any] = Depends(require_admin),
+) -> GenericResponse:
+    room: Room = Room(
+        id="",
+        name=request.name,
+        room_number=request.room_number,
+        capacity=request.capacity,
+        floor=request.floor,
+        amenities=request.amenities,
+        status=request.status or "available",
+        location=request.location,
+        description=request.description,
+        created_at=0,
+        updated_at=0,
+    )
+    room_service.add_room(room)
+    return GenericResponse(message="room added successfully")
 
 
 @rooms_router.get("/rooms", response_model=List[RoomDTO])
 async def get_all_rooms(
     room_service: RoomService = Depends(get_room_service),
-    current_user: dict = Depends(require_user),
-):
-    try:
-        rooms = room_service.get_all_rooms()
-        return [
-            RoomDTO(
-                id=r.id,
-                name=r.name,
-                room_number=r.room_number,
-                capacity=r.capacity,
-                floor=r.floor,
-                amenities=r.amenities,
-                status=r.status,
-                location=r.location,
-                description=r.description,
-                created_at=r.created_at,
-                updated_at=r.updated_at,
-            )
-            for r in rooms
-        ]
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    current_user: Dict[str, Any] = Depends(require_user),
+) -> List[RoomDTO]:
+    rooms: List[Room] = room_service.get_all_rooms()
+    return [
+        RoomDTO(
+            id=r.id,
+            name=r.name,
+            room_number=r.room_number,
+            capacity=r.capacity,
+            floor=r.floor,
+            amenities=r.amenities,
+            status=r.status,
+            location=r.location,
+            description=r.description,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
+        for r in rooms
+    ]
 
 
 @rooms_router.get("/rooms/{id}", response_model=RoomDTO)
 async def get_room_by_id(
     id: str,
     room_service: RoomService = Depends(get_room_service),
-    current_user: dict = Depends(require_user),
-):
-    try:
-        room = room_service.get_room_by_id(id)
-        return RoomDTO(
-            id=room.id,
-            name=room.name,
-            room_number=room.room_number,
-            capacity=room.capacity,
-            floor=room.floor,
-            amenities=room.amenities,
-            status=room.status,
-            location=room.location,
-            description=room.description,
-            created_at=room.created_at,
-            updated_at=room.updated_at,
-        )
-    except (InvalidInputError, NotFoundError) as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    current_user: Dict[str, Any] = Depends(require_user),
+) -> RoomDTO:
+    room: Room = room_service.get_room_by_id(id)
+    return RoomDTO(
+        id=room.id,
+        name=room.name,
+        room_number=room.room_number,
+        capacity=room.capacity,
+        floor=room.floor,
+        amenities=room.amenities,
+        status=room.status,
+        location=room.location,
+        description=room.description,
+        created_at=room.created_at,
+        updated_at=room.updated_at,
+    )
 
 
 @rooms_router.delete("/rooms/{id}", response_model=GenericResponse)
 async def delete_room_by_id(
     id: str,
     room_service: RoomService = Depends(get_room_service),
-    current_user: dict = Depends(require_admin),
-):
-    try:
-        room_service.delete_room_by_id(id)
-        return GenericResponse(message="room deleted successfully")
-    except (InvalidInputError, NotFoundError) as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    current_user: Dict[str, Any] = Depends(require_admin),
+) -> GenericResponse:
+    room_service.delete_room_by_id(id)
+    return GenericResponse(message="room deleted successfully")
 
 
 @rooms_router.get("/rooms/search", response_model=List[RoomDTO])
@@ -118,27 +98,24 @@ async def search_rooms(
     start_time: Optional[int] = Query(default=None),
     end_time: Optional[int] = Query(default=None),
     room_service: RoomService = Depends(get_room_service),
-    current_user: dict = Depends(require_user),
-):
-    try:
-        rooms = room_service.search_rooms(
-            min_capacity, max_capacity, floor, start_time, end_time
+    current_user: Dict[str, Any] = Depends(require_user),
+) -> List[RoomDTO]:
+    rooms: List[Room] = room_service.search_rooms(
+        min_capacity, max_capacity, floor, start_time, end_time
+    )
+    return [
+        RoomDTO(
+            id=r.id,
+            name=r.name,
+            room_number=r.room_number,
+            capacity=r.capacity,
+            floor=r.floor,
+            amenities=r.amenities,
+            status=r.status,
+            location=r.location,
+            description=r.description,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
         )
-        return [
-            RoomDTO(
-                id=r.id,
-                name=r.name,
-                room_number=r.room_number,
-                capacity=r.capacity,
-                floor=r.floor,
-                amenities=r.amenities,
-                status=r.status,
-                location=r.location,
-                description=r.description,
-                created_at=r.created_at,
-                updated_at=r.updated_at,
-            )
-            for r in rooms
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        for r in rooms
+    ]

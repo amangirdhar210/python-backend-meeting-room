@@ -7,6 +7,8 @@ from app.models.models import (
     BookingWithDetails,
     RoomScheduleResponse,
     ScheduleSlot,
+    User,
+    Room,
 )
 from app.repositories.bookings_repo import BookingRepository
 from app.repositories.rooms_repo import RoomRepository
@@ -28,10 +30,10 @@ class BookingService:
         booking_repository: BookingRepository,
         room_repository: RoomRepository,
         user_repository: UserRepository,
-    ):
-        self.booking_repo = booking_repository
-        self.room_repo = room_repository
-        self.user_repo = user_repository
+    ) -> None:
+        self.booking_repo: BookingRepository = booking_repository
+        self.room_repo: RoomRepository = room_repository
+        self.user_repo: UserRepository = user_repository
 
     def create_booking(self, booking: Booking) -> None:
         if not booking:
@@ -50,15 +52,15 @@ class BookingService:
                 f"Bookings can only be made up to {settings.MAX_BOOKING_DAYS_IN_FUTURE} days in advance"
             )
 
-        user = self.user_repo.get_by_id(booking.user_id)
+        user: User = self.user_repo.get_by_id(booking.user_id)
         if not user:
             raise NotFoundError("User not found")
 
-        room = self.room_repo.get_by_id(booking.room_id)
+        room: Room = self.room_repo.get_by_id(booking.room_id)
         if not room:
             raise NotFoundError("Room not found")
 
-        existing_bookings = self.booking_repo.get_by_room_and_time(
+        existing_bookings: List[Booking] = self.booking_repo.get_by_room_and_time(
             booking.room_id, booking.start_time, booking.end_time
         )
 
@@ -81,7 +83,7 @@ class BookingService:
         if not booking_id:
             raise InvalidInputError("Booking ID is required")
 
-        booking = self.booking_repo.get_by_id(booking_id)
+        booking: Booking = self.booking_repo.get_by_id(booking_id)
         if not booking:
             raise NotFoundError("Booking not found")
 
@@ -91,7 +93,7 @@ class BookingService:
         if not booking_id:
             raise InvalidInputError("Booking ID is required")
 
-        booking = self.booking_repo.get_by_id(booking_id)
+        booking: Booking = self.booking_repo.get_by_id(booking_id)
         if not booking:
             raise NotFoundError("Booking not found")
 
@@ -118,13 +120,13 @@ class BookingService:
         if not room_id:
             raise InvalidInputError("Room ID is required")
 
-        bookings = self.booking_repo.get_by_room_id(room_id)
-        room = self.room_repo.get_by_id(room_id)
+        bookings: List[Booking] = self.booking_repo.get_by_room_id(room_id)
+        room: Room = self.room_repo.get_by_id(room_id)
 
-        detailed_bookings = []
+        detailed_bookings: List[BookingWithDetails] = []
         for booking in bookings:
             try:
-                user = self.user_repo.get_by_id(booking.user_id)
+                user: User = self.user_repo.get_by_id(booking.user_id)
                 detailed_bookings.append(
                     BookingWithDetails(
                         id=booking.id,
@@ -158,17 +160,19 @@ class BookingService:
         if not room_id:
             raise InvalidInputError("Room ID is required")
 
-        room = self.room_repo.get_by_id(room_id)
+        room: Room = self.room_repo.get_by_id(room_id)
         if not room:
             raise NotFoundError("Room not found")
 
-        bookings = self.booking_repo.get_by_room_id_and_date(room_id, target_date)
+        bookings: List[Booking] = self.booking_repo.get_by_room_id_and_date(
+            room_id, target_date
+        )
 
-        schedule_slots = []
+        schedule_slots: List[ScheduleSlot] = []
         for booking in bookings:
-            user_name = ""
+            user_name: str = ""
             try:
-                user = self.user_repo.get_by_id(booking.user_id)
+                user: User = self.user_repo.get_by_id(booking.user_id)
                 if user:
                     user_name = user.name
             except Exception:

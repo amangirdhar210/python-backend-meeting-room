@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Any
 import boto3
 from boto3.dynamodb.conditions import Key
 from app.models.models import User
@@ -7,11 +7,11 @@ import time
 
 
 class UserRepository:
-    def __init__(self, dynamodb_client, table_name: str):
-        self.dynamodb = dynamodb_client
-        self.table = dynamodb_client.Table(table_name)
+    def __init__(self, dynamodb_client: Any, table_name: str) -> None:
+        self.dynamodb: Any = dynamodb_client
+        self.table: Any = dynamodb_client.Table(table_name)
 
-    def find_user_id_by_email(self, email: str) -> Optional[str]:
+    def find_user_id_by_email(self, email: str) -> str:
         if not email:
             raise InvalidInputError("Email is required")
 
@@ -29,13 +29,13 @@ class UserRepository:
                 raise
             raise Exception(f"Failed to query user: {str(e)}")
 
-    def find_by_email(self, email: str) -> Optional[User]:
-        user_id = self.find_user_id_by_email(email)
+    def find_by_email(self, email: str) -> User:
+        user_id: str = self.find_user_id_by_email(email)
         if not user_id:
-            return None
+            raise NotFoundError("User not found")
         return self.get_by_id(user_id)
 
-    def get_by_id(self, user_id: str) -> Optional[User]:
+    def get_by_id(self, user_id: str) -> User:
         if not user_id:
             raise InvalidInputError("User ID is required")
 

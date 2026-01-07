@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional
 import uuid
 import time
 from app.models.models import Room, Booking, TimeSlot
@@ -8,8 +8,8 @@ from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
 
 class RoomService:
 
-    def __init__(self, room_repository: RoomRepository):
-        self.room_repo = room_repository
+    def __init__(self, room_repository: RoomRepository) -> None:
+        self.room_repo: RoomRepository = room_repository
 
     def add_room(self, room: Room) -> None:
         if not room:
@@ -33,7 +33,7 @@ class RoomService:
         if not room.amenities:
             room.amenities = []
 
-        exists = self.room_repo.check_room_number_exists_on_floor(
+        exists: bool = self.room_repo.check_room_number_exists_on_floor(
             room.room_number, room.floor
         )
         if exists:
@@ -46,7 +46,7 @@ class RoomService:
         self.room_repo.create(room)
 
     def get_all_rooms(self) -> List[Room]:
-        rooms = self.room_repo.get_all()
+        rooms: List[Room] = self.room_repo.get_all()
         if not rooms:
             raise NotFoundError("No rooms found")
         return rooms
@@ -55,7 +55,7 @@ class RoomService:
         if not room_id:
             raise InvalidInputError("Room ID is required")
 
-        room = self.room_repo.get_by_id(room_id)
+        room: Room = self.room_repo.get_by_id(room_id)
         if not room:
             raise NotFoundError("Room not found")
         return room
@@ -73,29 +73,31 @@ class RoomService:
         start_time: Optional[int],
         end_time: Optional[int],
     ) -> List[Room]:
-        rooms = self.room_repo.search_with_filters(min_capacity, max_capacity, floor)
+        rooms: List[Room] = self.room_repo.search_with_filters(
+            min_capacity, max_capacity, floor
+        )
         return rooms
 
-    def check_availability(
-        self, room_id: str, start_time: int, end_time: int
-    ) -> Tuple[bool, List[Booking]]:
-        if not room_id:
-            raise InvalidInputError("Room ID is required")
+    # def check_availability(
+    #     self, room_id: str, start_time: int, end_time: int
+    # ) -> Tuple[bool, List[Booking]]:
+    #     if not room_id:
+    #         raise InvalidInputError("Room ID is required")
 
-        room = self.room_repo.get_by_id(room_id)
-        if not room:
-            raise NotFoundError("Room not found")
+    #     room = self.room_repo.get_by_id(room_id)
+    #     if not room:
+    #         raise NotFoundError("Room not found")
 
-        return True, []
+    #     return True, []
 
-    def get_available_slots(
-        self, room_id: str, date: int, slot_duration: int
-    ) -> List[TimeSlot]:
-        if not room_id or slot_duration <= 0:
-            raise InvalidInputError("Invalid input")
+    # def get_available_slots(
+    #     self, room_id: str, date: int, slot_duration: int
+    # ) -> List[TimeSlot]:
+    #     if not room_id or slot_duration <= 0:
+    #         raise InvalidInputError("Invalid input")
 
-        room = self.room_repo.get_by_id(room_id)
-        if not room:
-            raise NotFoundError("Room not found")
+    #     room = self.room_repo.get_by_id(room_id)
+    #     if not room:
+    #         raise NotFoundError("Room not found")
 
-        return []
+    #     return []

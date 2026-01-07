@@ -4,13 +4,16 @@ import time
 from app.models.models import User
 from app.repositories.users_repo import UserRepository
 from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
+from app.utils.password_utils import PasswordHasher
 
 
 class UserService:
 
-    def __init__(self, user_repository: UserRepository, password_hasher):
-        self.user_repo = user_repository
-        self.password_hasher = password_hasher
+    def __init__(
+        self, user_repository: UserRepository, password_hasher: PasswordHasher
+    ) -> None:
+        self.user_repo: UserRepository = user_repository
+        self.password_hasher: PasswordHasher = password_hasher
 
     def register(self, user: User) -> None:
         if not user:
@@ -25,13 +28,13 @@ class UserService:
             raise InvalidInputError("All fields are required")
 
         try:
-            existing = self.user_repo.find_by_email(user.email)
+            existing: User = self.user_repo.find_by_email(user.email)
             if existing:
                 raise ConflictError("User already exists")
         except NotFoundError:
             pass
 
-        hashed = self.password_hasher.hash_password(user.password)
+        hashed: str = self.password_hasher.hash_password(user.password)
         user.id = str(uuid.uuid4())
         user.password = hashed
         user.created_at = int(time.time())
@@ -40,7 +43,7 @@ class UserService:
         self.user_repo.create(user)
 
     def get_all_users(self) -> List[User]:
-        users = self.user_repo.get_all()
+        users: List[User] = self.user_repo.get_all()
         if not users:
             raise NotFoundError("No users found")
         return users
