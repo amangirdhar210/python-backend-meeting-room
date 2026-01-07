@@ -23,7 +23,8 @@ class UserRepository:
             if not response.get("Items"):
                 raise NotFoundError("User not found")
 
-            return response["Items"][0].get("ID")
+            user_id = response["Items"][0].get("ID")
+            return str(user_id) if user_id else ""
         except Exception as e:
             if isinstance(e, NotFoundError):
                 raise

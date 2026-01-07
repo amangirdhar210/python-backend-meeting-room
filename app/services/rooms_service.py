@@ -55,7 +55,7 @@ class RoomService:
         if not room_id:
             raise InvalidInputError("Room ID is required")
 
-        room: Room = self.room_repo.get_by_id(room_id)
+        room = self.room_repo.get_by_id(room_id)
         if not room:
             raise NotFoundError("Room not found")
         return room

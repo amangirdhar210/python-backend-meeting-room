@@ -31,7 +31,7 @@ class RegisterUserRequest(BaseModel):
 class RoomDTO(BaseModel):
     id: str
     name: str
-    room_number: int = Field(alias="roomNumber", serialization_alias="roomNumber") 
+    room_number: int
     capacity: int
     floor: int
     amenities: List[str]
@@ -45,7 +45,7 @@ class RoomDTO(BaseModel):
 
 class AddRoomRequest(BaseModel):
     name: Annotated[str, "name of the room"] = Field(min_length=1, max_length=100)
-    room_number: int = Field(gt=0, alias="roomNumber", serialization_alias="roomNumber")
+    room_number: int = Field(gt=0)
     capacity: int = Field(gt=0)
     floor: int = Field(ge=0)
     amenities: List[str] = []

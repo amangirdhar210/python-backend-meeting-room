@@ -18,7 +18,6 @@ async def add_room(
     current_user: Dict[str, Any] = Depends(require_admin),
 ) -> GenericResponse:
     room: Room = Room(
-        id="",
         name=request.name,
         room_number=request.room_number,
         capacity=request.capacity,
@@ -27,8 +26,6 @@ async def add_room(
         status=request.status or "available",
         location=request.location,
         description=request.description,
-        created_at=0,
-        updated_at=0,
     )
     room_service.add_room(room)
     return GenericResponse(message="room added successfully")
@@ -40,22 +37,7 @@ async def get_all_rooms(
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> List[RoomDTO]:
     rooms: List[Room] = room_service.get_all_rooms()
-    return [
-        RoomDTO(
-            id=r.id,
-            name=r.name,
-            room_number=r.room_number,
-            capacity=r.capacity,
-            floor=r.floor,
-            amenities=r.amenities,
-            status=r.status,
-            location=r.location,
-            description=r.description,
-            created_at=r.created_at,
-            updated_at=r.updated_at,
-        )
-        for r in rooms
-    ]
+    return [RoomDTO(**r.model_dump()) for r in rooms]
 
 
 @rooms_router.get("/rooms/{id}", response_model=RoomDTO)
@@ -65,19 +47,7 @@ async def get_room_by_id(
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> RoomDTO:
     room: Room = room_service.get_room_by_id(id)
-    return RoomDTO(
-        id=room.id,
-        name=room.name,
-        room_number=room.room_number,
-        capacity=room.capacity,
-        floor=room.floor,
-        amenities=room.amenities,
-        status=room.status,
-        location=room.location,
-        description=room.description,
-        created_at=room.created_at,
-        updated_at=room.updated_at,
-    )
+    return RoomDTO(**room.model_dump())
 
 
 @rooms_router.delete("/rooms/{id}", response_model=GenericResponse)
@@ -103,19 +73,4 @@ async def search_rooms(
     rooms: List[Room] = room_service.search_rooms(
         min_capacity, max_capacity, floor, start_time, end_time
     )
-    return [
-        RoomDTO(
-            id=r.id,
-            name=r.name,
-            room_number=r.room_number,
-            capacity=r.capacity,
-            floor=r.floor,
-            amenities=r.amenities,
-            status=r.status,
-            location=r.location,
-            description=r.description,
-            created_at=r.created_at,
-            updated_at=r.updated_at,
-        )
-        for r in rooms
-    ]
+    return [RoomDTO(**r.model_dump()) for r in rooms]

@@ -18,13 +18,10 @@ async def register(
     current_user: Dict[str, Any] = Depends(require_admin),
 ) -> GenericResponse:
     user: User = User(
-        id="",
         name=request.name,
         email=request.email,
         password=request.password,
         role=request.role,
-        created_at=0,
-        updated_at=0,
     )
     user_service.register(user)
     return GenericResponse(message="user registered successfully")
@@ -36,17 +33,7 @@ async def get_all_users(
     current_user: Dict[str, Any] = Depends(require_admin),
 ) -> List[UserDTO]:
     users: List[User] = user_service.get_all_users()
-    return [
-        UserDTO(
-            id=u.id,
-            name=u.name,
-            email=u.email,
-            role=u.role,
-            created_at=u.created_at,
-            updated_at=u.updated_at,
-        )
-        for u in users
-    ]
+    return [UserDTO(**u.model_dump(exclude={"password"})) for u in users]
 
 
 @users_router.get("/users/{user_id}", response_model=UserDTO)
@@ -56,14 +43,7 @@ async def get_user_by_id(
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> UserDTO:
     user: User = user_service.get_user_by_id(user_id)
-    return UserDTO(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        role=user.role,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-    )
+    return UserDTO(**user.model_dump(exclude={"password"}))
 
 
 @users_router.delete("/users/{id}", response_model=GenericResponse)

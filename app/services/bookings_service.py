@@ -52,11 +52,11 @@ class BookingService:
                 f"Bookings can only be made up to {settings.MAX_BOOKING_DAYS_IN_FUTURE} days in advance"
             )
 
-        user: User = self.user_repo.get_by_id(booking.user_id)
+        user = self.user_repo.get_by_id(booking.user_id)
         if not user:
             raise NotFoundError("User not found")
 
-        room: Room = self.room_repo.get_by_id(booking.room_id)
+        room = self.room_repo.get_by_id(booking.room_id)
         if not room:
             raise NotFoundError("Room not found")
 
@@ -121,7 +121,10 @@ class BookingService:
             raise InvalidInputError("Room ID is required")
 
         bookings: List[Booking] = self.booking_repo.get_by_room_id(room_id)
-        room: Room = self.room_repo.get_by_id(room_id)
+        room = self.room_repo.get_by_id(room_id)
+
+        if not room:
+            raise NotFoundError("Room not found")
 
         detailed_bookings: List[BookingWithDetails] = []
         for booking in bookings:
@@ -160,7 +163,7 @@ class BookingService:
         if not room_id:
             raise InvalidInputError("Room ID is required")
 
-        room: Room = self.room_repo.get_by_id(room_id)
+        room = self.room_repo.get_by_id(room_id)
         if not room:
             raise NotFoundError("Room not found")
 

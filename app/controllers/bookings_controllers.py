@@ -7,7 +7,8 @@ from app.models.pydantic_models import (
     CreateBookingRequest,
     BookingDTO,
     GenericResponse,
-    RoomScheduleResponse,
+    RoomScheduleResponse as RoomScheduleDTO,
+    ScheduleSlotDTO,
 )
 from app.utils.dependencies import get_booking_service
 from app.utils.auth_middleware import require_user, require_admin
@@ -29,17 +30,11 @@ async def create_booking(
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> GenericResponse:
     booking: Booking = Booking(
-        id="",
-        user_id=current_user.get("user_id"),
-        user_name="",
+        user_id=current_user.get("user_id") or "",
         room_id=request.room_id,
-        room_number=0,
         start_time=request.start_time,
         end_time=request.end_time,
         purpose=request.purpose,
-        status="",
-        created_at=0,
-        updated_at=0,
     )
     booking_service.create_booking(booking)
     return GenericResponse(message="booking created successfully")
@@ -98,20 +93,35 @@ async def get_bookings_by_user_id(
     return [BookingDTO(**b.model_dump()) for b in bookings]
 
 
-@bookings_router.get("/rooms/{room_id}/schedule", response_model=RoomScheduleResponse)
+@bookings_router.get("/rooms/{room_id}/schedule", response_model=RoomScheduleDTO)
 async def get_room_schedule_by_date(
     room_id: str,
     date: str = Query(..., description="Date in YYYY-MM-DD format"),
     booking_service: BookingService = Depends(get_booking_service),
     current_user: Dict[str, Any] = Depends(require_user),
-) -> RoomScheduleResponse:
+) -> RoomScheduleDTO:
     try:
         date_obj: datetime = datetime.strptime(date, "%Y-%m-%d")
     except ValueError:
         raise InvalidInputError("Invalid date format. Use YYYY-MM-DD")
 
     unix_timestamp: int = int(date_obj.timestamp())
-    schedule: RoomScheduleResponse = booking_service.get_room_schedule_by_date(
-        room_id, unix_timestamp
+    schedule = booking_service.get_room_schedule_by_date(room_id, unix_timestamp)
+
+    return RoomScheduleDTO(
+        room_id=schedule.room_id,
+        room_name=schedule.room_name,
+        room_number=schedule.room_number,
+        date=schedule.date,
+        bookings=[
+            ScheduleSlotDTO(
+                start_time=slot.start_time,
+                end_time=slot.end_time,
+                is_booked=slot.is_booked,
+                booking_id=slot.booking_id,
+                user_name=slot.user_name,
+                purpose=slot.purpose,
+            )
+            for slot in schedule.bookings
+        ],
     )
-    return schedule

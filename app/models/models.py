@@ -3,41 +3,41 @@ from pydantic import BaseModel
 
 
 class User(BaseModel):
-    id: str
+    id: str = ""
     name: str
     email: str
     password: str
     role: str
-    created_at: int
-    updated_at: int
+    created_at: int = 0
+    updated_at: int = 0
 
 
 class Room(BaseModel):
-    id: str
+    id: str = ""
     name: str
     room_number: int
     capacity: int
     floor: int
     amenities: List[str]
-    status: str
+    status: str = "available"
     location: str
-    description: Optional[str]
-    created_at: int
-    updated_at: int
+    description: Optional[str] = None
+    created_at: int = 0
+    updated_at: int = 0
 
 
 class Booking(BaseModel):
-    id: str
+    id: str = ""
     user_id: str
-    user_name: str
+    user_name: str = ""
     room_id: str
-    room_number: int
+    room_number: int = 0
     start_time: int
     end_time: int
     purpose: str
-    status: str
-    created_at: int
-    updated_at: int
+    status: str = ""
+    created_at: int = 0
+    updated_at: int = 0
 
 
 class TimeSlot(BaseModel):
