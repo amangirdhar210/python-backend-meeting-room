@@ -15,7 +15,7 @@ class UserService:
         self.user_repo: UserRepository = user_repository
         self.password_hasher: PasswordHasher = password_hasher
 
-    def register(self, user: User) -> None:
+    async def register(self, user: User) -> None:
         if not user:
             raise InvalidInputError("User is required")
 
@@ -28,7 +28,7 @@ class UserService:
             raise InvalidInputError("All fields are required")
 
         try:
-            existing: User = self.user_repo.find_by_email(user.email)
+            existing: User = await self.user_repo.find_by_email(user.email)
             if existing:
                 raise ConflictError("User already exists")
         except NotFoundError:
@@ -40,20 +40,20 @@ class UserService:
         user.created_at = int(time.time())
         user.updated_at = int(time.time())
 
-        self.user_repo.create(user)
+        await self.user_repo.create(user)
 
-    def get_all_users(self) -> List[User]:
-        users: List[User] = self.user_repo.get_all()
+    async def get_all_users(self) -> List[User]:
+        users: List[User] = await self.user_repo.get_all()
         if not users:
             raise NotFoundError("No users found")
         return users
 
-    def get_user_by_id(self, user_id: str) -> User:
+    async def get_user_by_id(self, user_id: str) -> User:
         if not user_id or len(user_id) < 10:
             raise InvalidInputError("Invalid user ID")
-        return self.user_repo.get_by_id(user_id)
+        return await self.user_repo.get_by_id(user_id)
 
-    def delete_user_by_id(self, user_id: str) -> None:
+    async def delete_user_by_id(self, user_id: str) -> None:
         if not user_id:
             raise InvalidInputError("User ID is required")
-        self.user_repo.delete_by_id(user_id)
+        await self.user_repo.delete_by_id(user_id)

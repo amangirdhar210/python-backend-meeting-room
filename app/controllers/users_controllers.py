@@ -23,7 +23,7 @@ async def register(
         password=request.password,
         role=request.role,
     )
-    user_service.register(user)
+    await user_service.register(user)
     return GenericResponse(message="user registered successfully")
 
 
@@ -32,7 +32,7 @@ async def get_all_users(
     user_service: UserService = Depends(get_user_service),
     current_user: Dict[str, Any] = Depends(require_admin),
 ) -> List[UserDTO]:
-    users: List[User] = user_service.get_all_users()
+    users: List[User] = await user_service.get_all_users()
     return [UserDTO(**u.model_dump(exclude={"password"})) for u in users]
 
 
@@ -42,7 +42,7 @@ async def get_user_by_id(
     user_service: UserService = Depends(get_user_service),
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> UserDTO:
-    user: User = user_service.get_user_by_id(user_id)
+    user: User = await user_service.get_user_by_id(user_id)
     return UserDTO(**user.model_dump(exclude={"password"}))
 
 
@@ -52,5 +52,5 @@ async def delete_user_by_id(
     user_service: UserService = Depends(get_user_service),
     current_user: Dict[str, Any] = Depends(require_admin),
 ) -> GenericResponse:
-    user_service.delete_user_by_id(id)
+    await user_service.delete_user_by_id(id)
     return GenericResponse(message="user deleted successfully")

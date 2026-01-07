@@ -13,7 +13,7 @@ auth_router: APIRouter = APIRouter(tags=["Authentication"])
 async def login(
     request: LoginUserRequest, auth_service: AuthService = Depends(get_auth_service)
 ) -> LoginUserResponse:
-    token, user = auth_service.login(request.email, request.password)
+    token, user = await auth_service.login(request.email, request.password)
 
     return LoginUserResponse(
         token=token,

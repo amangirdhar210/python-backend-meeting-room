@@ -18,14 +18,14 @@ class AuthService:
         self.token_generator: JWTGenerator = token_generator
         self.password_hasher: PasswordHasher = password_hasher
 
-    def login(self, email: str, password: str) -> Tuple[str, User]:
+    async def login(self, email: str, password: str) -> Tuple[str, User]:
         email = email.strip()
         password = password.strip()
 
         if not email or not password:
             raise InvalidInputError("Email and password are required")
 
-        user: User = self.user_repo.find_by_email(email)
+        user: User = await self.user_repo.find_by_email(email)
         if not user:
             raise UnauthorizedError("Invalid credentials")
 

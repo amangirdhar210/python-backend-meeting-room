@@ -11,7 +11,7 @@ class RoomService:
     def __init__(self, room_repository: RoomRepository) -> None:
         self.room_repo: RoomRepository = room_repository
 
-    def add_room(self, room: Room) -> None:
+    async def add_room(self, room: Room) -> None:
         if not room:
             raise InvalidInputError("Room is required")
 
@@ -33,7 +33,7 @@ class RoomService:
         if not room.amenities:
             room.amenities = []
 
-        exists: bool = self.room_repo.check_room_number_exists_on_floor(
+        exists: bool = await self.room_repo.check_room_number_exists_on_floor(
             room.room_number, room.floor
         )
         if exists:
@@ -43,29 +43,29 @@ class RoomService:
         room.created_at = int(time.time())
         room.updated_at = int(time.time())
 
-        self.room_repo.create(room)
+        await self.room_repo.create(room)
 
-    def get_all_rooms(self) -> List[Room]:
-        rooms: List[Room] = self.room_repo.get_all()
+    async def get_all_rooms(self) -> List[Room]:
+        rooms: List[Room] = await self.room_repo.get_all()
         if not rooms:
             raise NotFoundError("No rooms found")
         return rooms
 
-    def get_room_by_id(self, room_id: str) -> Room:
+    async def get_room_by_id(self, room_id: str) -> Room:
         if not room_id:
             raise InvalidInputError("Room ID is required")
 
-        room = self.room_repo.get_by_id(room_id)
+        room = await self.room_repo.get_by_id(room_id)
         if not room:
             raise NotFoundError("Room not found")
         return room
 
-    def delete_room_by_id(self, room_id: str) -> None:
+    async def delete_room_by_id(self, room_id: str) -> None:
         if not room_id:
             raise InvalidInputError("Room ID is required")
-        self.room_repo.delete_by_id(room_id)
+        await self.room_repo.delete_by_id(room_id)
 
-    def search_rooms(
+    async def search_rooms(
         self,
         min_capacity: int,
         max_capacity: int,
@@ -73,7 +73,7 @@ class RoomService:
         start_time: Optional[int],
         end_time: Optional[int],
     ) -> List[Room]:
-        rooms: List[Room] = self.room_repo.search_with_filters(
+        rooms: List[Room] = await self.room_repo.search_with_filters(
             min_capacity, max_capacity, floor
         )
         return rooms

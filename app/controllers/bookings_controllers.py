@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Query
 from typing import List, Dict, Any
-from datetime import datetime
 from app.services.bookings_service import BookingService
 from app.models.models import Booking
 from app.models.pydantic_models import (
@@ -36,7 +35,7 @@ async def create_booking(
         end_time=request.end_time,
         purpose=request.purpose,
     )
-    booking_service.create_booking(booking)
+    await booking_service.create_booking(booking)
     return GenericResponse(message="booking created successfully")
 
 
@@ -46,7 +45,7 @@ async def get_booking_by_id(
     booking_service: BookingService = Depends(get_booking_service),
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> BookingDTO:
-    booking: Booking = booking_service.get_booking_by_id(booking_id)
+    booking: Booking = await booking_service.get_booking_by_id(booking_id)
     return BookingDTO(**booking.model_dump())
 
 
@@ -56,7 +55,7 @@ async def cancel_booking(
     booking_service: BookingService = Depends(get_booking_service),
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> GenericResponse:
-    booking_service.cancel_booking(id)
+    await booking_service.cancel_booking(id)
     return GenericResponse(message="booking cancelled successfully")
 
 
@@ -66,10 +65,10 @@ async def get_all_bookings(
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> List[BookingDTO]:
     if current_user.get("role") == "admin":
-        bookings: List[Booking] = booking_service.get_all_bookings()
+        bookings: List[Booking] = await booking_service.get_all_bookings()
     else:
         user_id: Any = current_user.get("user_id")
-        bookings = booking_service.get_bookings_by_user_id(user_id)
+        bookings = await booking_service.get_bookings_by_user_id(user_id)
     return [BookingDTO(**b.model_dump()) for b in bookings]
 
 
@@ -79,7 +78,7 @@ async def get_bookings_by_room_id(
     booking_service: BookingService = Depends(get_booking_service),
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> List[BookingDTO]:
-    bookings: List[Booking] = booking_service.get_bookings_by_room_id(room_id)
+    bookings: List[Booking] = await booking_service.get_bookings_by_room_id(room_id)
     return [BookingDTO(**b.model_dump()) for b in bookings]
 
 
@@ -89,7 +88,7 @@ async def get_bookings_by_user_id(
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> List[BookingDTO]:
     user_id: Any = current_user.get("user_id")
-    bookings: List[Booking] = booking_service.get_bookings_by_user_id(user_id)
+    bookings: List[Booking] = await booking_service.get_bookings_by_user_id(user_id)
     return [BookingDTO(**b.model_dump()) for b in bookings]
 
 
@@ -101,27 +100,19 @@ async def get_room_schedule_by_date(
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> RoomScheduleDTO:
     try:
-        date_obj: datetime = datetime.strptime(date, "%Y-%m-%d")
-    except ValueError:
+        from datetime import datetime, timezone
+
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        unix_timestamp = int(date_obj.replace(tzinfo=timezone.utc).timestamp())
+    except (ValueError, AttributeError):
         raise InvalidInputError("Invalid date format. Use YYYY-MM-DD")
 
-    unix_timestamp: int = int(date_obj.timestamp())
-    schedule = booking_service.get_room_schedule_by_date(room_id, unix_timestamp)
+    schedule = await booking_service.get_room_schedule_by_date(room_id, unix_timestamp)
 
     return RoomScheduleDTO(
         room_id=schedule.room_id,
         room_name=schedule.room_name,
         room_number=schedule.room_number,
         date=schedule.date,
-        bookings=[
-            ScheduleSlotDTO(
-                start_time=slot.start_time,
-                end_time=slot.end_time,
-                is_booked=slot.is_booked,
-                booking_id=slot.booking_id,
-                user_name=slot.user_name,
-                purpose=slot.purpose,
-            )
-            for slot in schedule.bookings
-        ],
+        bookings=[ScheduleSlotDTO(**slot.model_dump()) for slot in schedule.bookings],
     )

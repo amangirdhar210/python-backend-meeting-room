@@ -77,8 +77,8 @@ class CreateBookingRequest(BaseModel):
 
 
 class ScheduleSlotDTO(BaseModel):
-    start_time: str
-    end_time: str
+    start_time: int
+    end_time: int
     is_booked: bool
     booking_id: Optional[str] = None
     user_name: Optional[str] = None
@@ -89,7 +89,7 @@ class RoomScheduleResponse(BaseModel):
     room_id: str
     room_name: str
     room_number: int
-    date: str
+    date: int
     bookings: List[ScheduleSlotDTO]
 
 

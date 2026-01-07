@@ -1,7 +1,6 @@
 from typing import List
 import uuid
 import time
-from datetime import datetime
 from app.models.models import (
     Booking,
     BookingWithDetails,
@@ -35,7 +34,7 @@ class BookingService:
         self.room_repo: RoomRepository = room_repository
         self.user_repo: UserRepository = user_repository
 
-    def create_booking(self, booking: Booking) -> None:
+    async def create_booking(self, booking: Booking) -> None:
         if not booking:
             raise InvalidInputError("Booking is required")
 
@@ -52,15 +51,15 @@ class BookingService:
                 f"Bookings can only be made up to {settings.MAX_BOOKING_DAYS_IN_FUTURE} days in advance"
             )
 
-        user = self.user_repo.get_by_id(booking.user_id)
+        user = await self.user_repo.get_by_id(booking.user_id)
         if not user:
             raise NotFoundError("User not found")
 
-        room = self.room_repo.get_by_id(booking.room_id)
+        room = await self.room_repo.get_by_id(booking.room_id)
         if not room:
             raise NotFoundError("Room not found")
 
-        existing_bookings: List[Booking] = self.booking_repo.get_by_room_and_time(
+        existing_bookings: List[Booking] = await self.booking_repo.get_by_room_and_time(
             booking.room_id, booking.start_time, booking.end_time
         )
 
@@ -77,51 +76,51 @@ class BookingService:
         booking.created_at = int(time.time())
         booking.updated_at = int(time.time())
 
-        self.booking_repo.create(booking)
+        await self.booking_repo.create(booking)
 
-    def get_booking_by_id(self, booking_id: str) -> Booking:
+    async def get_booking_by_id(self, booking_id: str) -> Booking:
         if not booking_id:
             raise InvalidInputError("Booking ID is required")
 
-        booking: Booking = self.booking_repo.get_by_id(booking_id)
+        booking: Booking = await self.booking_repo.get_by_id(booking_id)
         if not booking:
             raise NotFoundError("Booking not found")
 
         return booking
 
-    def cancel_booking(self, booking_id: str) -> None:
+    async def cancel_booking(self, booking_id: str) -> None:
         if not booking_id:
             raise InvalidInputError("Booking ID is required")
 
-        booking: Booking = self.booking_repo.get_by_id(booking_id)
+        booking: Booking = await self.booking_repo.get_by_id(booking_id)
         if not booking:
             raise NotFoundError("Booking not found")
 
-        self.booking_repo.cancel(booking_id)
+        await self.booking_repo.cancel(booking_id)
 
-    def get_all_bookings(self) -> List[Booking]:
-        return self.booking_repo.get_all()
+    async def get_all_bookings(self) -> List[Booking]:
+        return await self.booking_repo.get_all()
 
-    def get_bookings_by_room_id(self, room_id: str) -> List[Booking]:
+    async def get_bookings_by_room_id(self, room_id: str) -> List[Booking]:
         if not room_id:
             raise InvalidInputError("Room ID is required")
 
-        return self.booking_repo.get_by_room_id(room_id)
+        return await self.booking_repo.get_by_room_id(room_id)
 
-    def get_bookings_by_user_id(self, user_id: str) -> List[Booking]:
+    async def get_bookings_by_user_id(self, user_id: str) -> List[Booking]:
         if not user_id:
             raise InvalidInputError("User ID is required")
 
-        return self.booking_repo.get_by_user_id(user_id)
+        return await self.booking_repo.get_by_user_id(user_id)
 
-    def get_bookings_with_details_by_room_id(
+    async def get_bookings_with_details_by_room_id(
         self, room_id: str
     ) -> List[BookingWithDetails]:
         if not room_id:
             raise InvalidInputError("Room ID is required")
 
-        bookings: List[Booking] = self.booking_repo.get_by_room_id(room_id)
-        room = self.room_repo.get_by_id(room_id)
+        bookings: List[Booking] = await self.booking_repo.get_by_room_id(room_id)
+        room = await self.room_repo.get_by_id(room_id)
 
         if not room:
             raise NotFoundError("Room not found")
@@ -129,7 +128,7 @@ class BookingService:
         detailed_bookings: List[BookingWithDetails] = []
         for booking in bookings:
             try:
-                user: User = self.user_repo.get_by_id(booking.user_id)
+                user: User = await self.user_repo.get_by_id(booking.user_id)
                 detailed_bookings.append(
                     BookingWithDetails(
                         id=booking.id,
@@ -152,22 +151,22 @@ class BookingService:
 
         return detailed_bookings
 
-    def get_bookings_by_date_range(
+    async def get_bookings_by_date_range(
         self, start_date: int, end_date: int
     ) -> List[Booking]:
-        return self.booking_repo.get_by_date_range(start_date, end_date)
+        return await self.booking_repo.get_by_date_range(start_date, end_date)
 
-    def get_room_schedule_by_date(
+    async def get_room_schedule_by_date(
         self, room_id: str, target_date: int
     ) -> RoomScheduleResponse:
         if not room_id:
             raise InvalidInputError("Room ID is required")
 
-        room = self.room_repo.get_by_id(room_id)
+        room = await self.room_repo.get_by_id(room_id)
         if not room:
             raise NotFoundError("Room not found")
 
-        bookings: List[Booking] = self.booking_repo.get_by_room_id_and_date(
+        bookings: List[Booking] = await self.booking_repo.get_by_room_id_and_date(
             room_id, target_date
         )
 
@@ -175,7 +174,7 @@ class BookingService:
         for booking in bookings:
             user_name: str = ""
             try:
-                user: User = self.user_repo.get_by_id(booking.user_id)
+                user: User = await self.user_repo.get_by_id(booking.user_id)
                 if user:
                     user_name = user.name
             except Exception:
@@ -183,8 +182,8 @@ class BookingService:
 
             schedule_slots.append(
                 ScheduleSlot(
-                    start_time=datetime.fromtimestamp(booking.start_time).isoformat(),
-                    end_time=datetime.fromtimestamp(booking.end_time).isoformat(),
+                    start_time=booking.start_time,
+                    end_time=booking.end_time,
                     is_booked=True,
                     booking_id=booking.id,
                     user_name=user_name,
@@ -196,6 +195,6 @@ class BookingService:
             room_id=room.id,
             room_name=room.name,
             room_number=room.room_number,
-            date=datetime.fromtimestamp(target_date).strftime("%Y-%m-%d"),
+            date=target_date,
             bookings=schedule_slots,
         )

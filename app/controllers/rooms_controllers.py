@@ -27,7 +27,7 @@ async def add_room(
         location=request.location,
         description=request.description,
     )
-    room_service.add_room(room)
+    await room_service.add_room(room)
     return GenericResponse(message="room added successfully")
 
 
@@ -36,7 +36,7 @@ async def get_all_rooms(
     room_service: RoomService = Depends(get_room_service),
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> List[RoomDTO]:
-    rooms: List[Room] = room_service.get_all_rooms()
+    rooms: List[Room] = await room_service.get_all_rooms()
     return [RoomDTO(**r.model_dump()) for r in rooms]
 
 
@@ -46,7 +46,7 @@ async def get_room_by_id(
     room_service: RoomService = Depends(get_room_service),
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> RoomDTO:
-    room: Room = room_service.get_room_by_id(id)
+    room: Room = await room_service.get_room_by_id(id)
     return RoomDTO(**room.model_dump())
 
 
@@ -56,7 +56,7 @@ async def delete_room_by_id(
     room_service: RoomService = Depends(get_room_service),
     current_user: Dict[str, Any] = Depends(require_admin),
 ) -> GenericResponse:
-    room_service.delete_room_by_id(id)
+    await room_service.delete_room_by_id(id)
     return GenericResponse(message="room deleted successfully")
 
 
@@ -70,7 +70,7 @@ async def search_rooms(
     room_service: RoomService = Depends(get_room_service),
     current_user: Dict[str, Any] = Depends(require_user),
 ) -> List[RoomDTO]:
-    rooms: List[Room] = room_service.search_rooms(
+    rooms: List[Room] = await room_service.search_rooms(
         min_capacity, max_capacity, floor, start_time, end_time
     )
     return [RoomDTO(**r.model_dump()) for r in rooms]

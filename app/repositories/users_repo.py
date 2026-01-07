@@ -1,5 +1,6 @@
 from typing import Optional, List, Any
 import boto3
+import asyncio
 from boto3.dynamodb.conditions import Key
 from app.models.models import User
 from app.utils.errors import NotFoundError, InvalidInputError
@@ -11,13 +12,14 @@ class UserRepository:
         self.dynamodb: Any = dynamodb_client
         self.table: Any = dynamodb_client.Table(table_name)
 
-    def find_user_id_by_email(self, email: str) -> str:
+    async def find_user_id_by_email(self, email: str) -> str:
         if not email:
             raise InvalidInputError("Email is required")
 
         try:
-            response = self.table.query(
-                KeyConditionExpression=Key("PK").eq("USER") & Key("SK").eq(email)
+            response = await asyncio.to_thread(
+                self.table.query,
+                KeyConditionExpression=Key("PK").eq("USER") & Key("SK").eq(email),
             )
 
             if not response.get("Items"):
@@ -30,20 +32,21 @@ class UserRepository:
                 raise
             raise Exception(f"Failed to query user: {str(e)}")
 
-    def find_by_email(self, email: str) -> User:
-        user_id: str = self.find_user_id_by_email(email)
+    async def find_by_email(self, email: str) -> User:
+        user_id: str = await self.find_user_id_by_email(email)
         if not user_id:
             raise NotFoundError("User not found")
-        return self.get_by_id(user_id)
+        return await self.get_by_id(user_id)
 
-    def get_by_id(self, user_id: str) -> User:
+    async def get_by_id(self, user_id: str) -> User:
         if not user_id:
             raise InvalidInputError("User ID is required")
 
         try:
-            response = self.table.query(
+            response = await asyncio.to_thread(
+                self.table.query,
                 KeyConditionExpression=Key("PK").eq("USER")
-                & Key("SK").eq(f"USER#{user_id}")
+                & Key("SK").eq(f"USER#{user_id}"),
             )
 
             if not response.get("Items"):
@@ -64,12 +67,13 @@ class UserRepository:
                 raise
             raise Exception(f"Failed to get user by ID: {str(e)}")
 
-    def create(self, user: User) -> None:
+    async def create(self, user: User) -> None:
         if not user:
             raise InvalidInputError("User is required")
 
         try:
-            self.table.meta.client.transact_write_items(
+            await asyncio.to_thread(
+                self.table.meta.client.transact_write_items,
                 TransactItems=[
                     {
                         "Put": {
@@ -93,16 +97,17 @@ class UserRepository:
                             },
                         }
                     },
-                ]
+                ],
             )
         except Exception as e:
             raise Exception(f"Failed to create user: {str(e)}")
 
-    def get_all(self) -> List[User]:
+    async def get_all(self) -> List[User]:
         try:
-            response = self.table.query(
+            response = await asyncio.to_thread(
+                self.table.query,
                 KeyConditionExpression=Key("PK").eq("USER")
-                & Key("SK").begins_with("USER#")
+                & Key("SK").begins_with("USER#"),
             )
 
             if not response.get("Items"):
@@ -126,16 +131,17 @@ class UserRepository:
         except Exception as e:
             raise Exception(f"Failed to get all users: {str(e)}")
 
-    def delete_by_id(self, user_id: str) -> None:
+    async def delete_by_id(self, user_id: str) -> None:
         if not user_id:
             raise InvalidInputError("User ID is required")
 
-        user = self.get_by_id(user_id)
+        user = await self.get_by_id(user_id)
         if not user:
             raise NotFoundError("User not found")
 
         try:
-            self.table.meta.client.transact_write_items(
+            await asyncio.to_thread(
+                self.table.meta.client.transact_write_items,
                 TransactItems=[
                     {
                         "Delete": {
@@ -149,7 +155,7 @@ class UserRepository:
                             "Key": {"PK": "USER", "SK": f"USER#{user_id}"},
                         }
                     },
-                ]
+                ],
             )
         except Exception as e:
             raise Exception(f"Failed to delete user: {str(e)}")
