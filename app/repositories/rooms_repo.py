@@ -17,25 +17,25 @@ class RoomRepository:
         if not room:
             raise InvalidInputError("Room is required")
 
-        try:
-            item = {
-                "PK": "ROOM",
-                "SK": f"ROOM#{room.id}",
-                "LSI1": room.floor,
-                "LSI2": room.capacity,
-                "ID": room.id,
-                "Name": room.name,
-                "RoomNumber": room.room_number,
-                "Capacity": room.capacity,
-                "Floor": room.floor,
-                "Amenities": room.amenities,
-                "Status": room.status,
-                "Location": room.location,
-                "Description": room.description or "",
-                "CreatedAt": room.created_at,
-                "UpdatedAt": room.updated_at,
-            }
+        item = {
+            "PK": "ROOM",
+            "SK": f"ROOM#{room.id}",
+            "LSI1": room.floor,
+            "LSI2": room.capacity,
+            "ID": room.id,
+            "Name": room.name,
+            "RoomNumber": room.room_number,
+            "Capacity": room.capacity,
+            "Floor": room.floor,
+            "Amenities": room.amenities,
+            "Status": room.status,
+            "Location": room.location,
+            "Description": room.description or "",
+            "CreatedAt": room.created_at,
+            "UpdatedAt": room.updated_at,
+        }
 
+        try:
             await asyncio.to_thread(
                 self.table.put_item,
                 Item=item,
@@ -43,70 +43,60 @@ class RoomRepository:
             )
         except self.dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
             raise ConflictError("Room already exists")
-        except Exception as e:
-            raise Exception(f"Failed to create room: {str(e)}")
 
     async def get_all(self) -> List[Room]:
-        try:
-            response = await asyncio.to_thread(
-                self.table.query, KeyConditionExpression=Key("PK").eq("ROOM")
+        response = await asyncio.to_thread(
+            self.table.query, KeyConditionExpression=Key("PK").eq("ROOM")
+        )
+
+        if not response.get("Items"):
+            return []
+
+        rooms = []
+        for item in response["Items"]:
+            rooms.append(
+                Room(
+                    id=item["ID"],
+                    name=item["Name"],
+                    room_number=int(item["RoomNumber"]),
+                    capacity=int(item["Capacity"]),
+                    floor=int(item["Floor"]),
+                    amenities=item.get("Amenities", []),
+                    status=item["Status"],
+                    location=item["Location"],
+                    description=item.get("Description"),
+                    created_at=int(item["CreatedAt"]),
+                    updated_at=int(item["UpdatedAt"]),
+                )
             )
 
-            if not response.get("Items"):
-                return []
-
-            rooms = []
-            for item in response["Items"]:
-                rooms.append(
-                    Room(
-                        id=item["ID"],
-                        name=item["Name"],
-                        room_number=int(item["RoomNumber"]),
-                        capacity=int(item["Capacity"]),
-                        floor=int(item["Floor"]),
-                        amenities=item.get("Amenities", []),
-                        status=item["Status"],
-                        location=item["Location"],
-                        description=item.get("Description"),
-                        created_at=int(item["CreatedAt"]),
-                        updated_at=int(item["UpdatedAt"]),
-                    )
-                )
-
-            return rooms
-        except Exception as e:
-            raise Exception(f"Failed to get all rooms: {str(e)}")
+        return rooms
 
     async def get_by_id(self, room_id: str) -> Optional[Room]:
         if not room_id:
             raise InvalidInputError("Room ID is required")
 
-        try:
-            response = await asyncio.to_thread(
-                self.table.get_item, Key={"PK": "ROOM", "SK": f"ROOM#{room_id}"}
-            )
+        response = await asyncio.to_thread(
+            self.table.get_item, Key={"PK": "ROOM", "SK": f"ROOM#{room_id}"}
+        )
 
-            if "Item" not in response:
-                raise NotFoundError("Room not found")
+        if "Item" not in response:
+            raise NotFoundError("Room not found")
 
-            item = response["Item"]
-            return Room(
-                id=item["ID"],
-                name=item["Name"],
-                room_number=int(item["RoomNumber"]),
-                capacity=int(item["Capacity"]),
-                floor=int(item["Floor"]),
-                amenities=item.get("Amenities", []),
-                status=item["Status"],
-                location=item["Location"],
-                description=item.get("Description"),
-                created_at=int(item["CreatedAt"]),
-                updated_at=int(item["UpdatedAt"]),
-            )
-        except Exception as e:
-            if isinstance(e, (NotFoundError, InvalidInputError)):
-                raise
-            raise Exception(f"Failed to get room by ID: {str(e)}")
+        item = response["Item"]
+        return Room(
+            id=item["ID"],
+            name=item["Name"],
+            room_number=int(item["RoomNumber"]),
+            capacity=int(item["Capacity"]),
+            floor=int(item["Floor"]),
+            amenities=item.get("Amenities", []),
+            status=item["Status"],
+            location=item["Location"],
+            description=item.get("Description"),
+            created_at=int(item["CreatedAt"]),
+            updated_at=int(item["UpdatedAt"]),
+        )
 
     async def delete_by_id(self, room_id: str) -> None:
         if not room_id:
@@ -120,8 +110,6 @@ class RoomRepository:
             )
         except self.dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
             raise NotFoundError("Room not found")
-        except Exception as e:
-            raise Exception(f"Failed to delete room: {str(e)}")
 
     async def update_availability(self, room_id: str, status: str) -> None:
         if not room_id:
@@ -141,84 +129,79 @@ class RoomRepository:
             )
         except self.dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
             raise NotFoundError("Room not found")
-        except Exception as e:
-            raise Exception(f"Failed to update room availability: {str(e)}")
 
     async def search_with_filters(
         self, min_capacity: int, max_capacity: int, floor: Optional[int]
     ) -> List[Room]:
-        try:
-            if floor is not None:
+        if floor is not None:
+            response = await asyncio.to_thread(
+                self.table.query,
+                IndexName="LSI-1",
+                KeyConditionExpression=Key("PK").eq("ROOM") & Key("LSI1").eq(floor),
+            )
+
+            items = response.get("Items", [])
+
+            if min_capacity > 0 or max_capacity > 0:
+                filtered_items = []
+                for item in items:
+                    capacity = int(item.get("LSI2", 0))
+                    if min_capacity > 0 and capacity < min_capacity:
+                        continue
+                    if max_capacity > 0 and capacity > max_capacity:
+                        continue
+                    filtered_items.append(item)
+                items = filtered_items
+
+        elif min_capacity > 0 or max_capacity > 0:
+            if min_capacity > 0 and max_capacity > 0:
                 response = await asyncio.to_thread(
                     self.table.query,
-                    IndexName="LSI-1",
-                    KeyConditionExpression=Key("PK").eq("ROOM") & Key("LSI1").eq(floor),
+                    IndexName="LSI-2",
+                    KeyConditionExpression=Key("PK").eq("ROOM")
+                    & Key("LSI2").between(min_capacity, max_capacity),
                 )
-
-                items = response.get("Items", [])
-
-                if min_capacity > 0 or max_capacity > 0:
-                    filtered_items = []
-                    for item in items:
-                        capacity = int(item.get("LSI2", 0))
-                        if min_capacity > 0 and capacity < min_capacity:
-                            continue
-                        if max_capacity > 0 and capacity > max_capacity:
-                            continue
-                        filtered_items.append(item)
-                    items = filtered_items
-
-            elif min_capacity > 0 or max_capacity > 0:
-                if min_capacity > 0 and max_capacity > 0:
-                    response = await asyncio.to_thread(
-                        self.table.query,
-                        IndexName="LSI-2",
-                        KeyConditionExpression=Key("PK").eq("ROOM")
-                        & Key("LSI2").between(min_capacity, max_capacity),
-                    )
-                elif min_capacity > 0:
-                    response = await asyncio.to_thread(
-                        self.table.query,
-                        IndexName="LSI-2",
-                        KeyConditionExpression=Key("PK").eq("ROOM")
-                        & Key("LSI2").gte(min_capacity),
-                    )
-                else:
-                    response = await asyncio.to_thread(
-                        self.table.query,
-                        IndexName="LSI-2",
-                        KeyConditionExpression=Key("PK").eq("ROOM")
-                        & Key("LSI2").lte(max_capacity),
-                    )
-
-                items = response.get("Items", [])
+            elif min_capacity > 0:
+                response = await asyncio.to_thread(
+                    self.table.query,
+                    IndexName="LSI-2",
+                    KeyConditionExpression=Key("PK").eq("ROOM")
+                    & Key("LSI2").gte(min_capacity),
+                )
             else:
                 response = await asyncio.to_thread(
-                    self.table.query, KeyConditionExpression=Key("PK").eq("ROOM")
-                )
-                items = response.get("Items", [])
-
-            rooms = []
-            for item in items:
-                rooms.append(
-                    Room(
-                        id=item["ID"],
-                        name=item["Name"],
-                        room_number=int(item["RoomNumber"]),
-                        capacity=int(item["Capacity"]),
-                        floor=int(item["Floor"]),
-                        amenities=item.get("Amenities", []),
-                        status=item["Status"],
-                        location=item["Location"],
-                        description=item.get("Description"),
-                        created_at=int(item["CreatedAt"]),
-                        updated_at=int(item["UpdatedAt"]),
-                    )
+                    self.table.query,
+                    IndexName="LSI-2",
+                    KeyConditionExpression=Key("PK").eq("ROOM")
+                    & Key("LSI2").lte(max_capacity),
                 )
 
-            return rooms
-        except Exception as e:
-            raise Exception(f"Failed to search rooms: {str(e)}")
+            items = response.get("Items", [])
+        else:
+            response = await asyncio.to_thread(
+                self.table.query, KeyConditionExpression=Key("PK").eq("ROOM")
+            )
+            items = response.get("Items", [])
+
+        rooms = []
+        for item in items:
+            rooms.append(
+                Room(
+                    id=item["ID"],
+                    name=item["Name"],
+                    room_number=int(item["RoomNumber"]),
+                    capacity=int(item["Capacity"]),
+                    floor=int(item["Floor"]),
+                    amenities=item.get("Amenities", []),
+                    status=item["Status"],
+                    location=item["Location"],
+                    description=item.get("Description"),
+                    created_at=int(item["CreatedAt"]),
+                    updated_at=int(item["UpdatedAt"]),
+                )
+            )
+
+        return rooms
 
     async def check_room_number_exists_on_floor(
         self, room_number: int, floor: int
@@ -230,7 +213,6 @@ class RoomRepository:
                 KeyConditionExpression=Key("PK").eq("ROOM") & Key("LSI1").eq(floor),
                 FilterExpression=Attr("RoomNumber").eq(room_number),
             )
-
             return len(response.get("Items", [])) > 0
         except Exception:
             return False

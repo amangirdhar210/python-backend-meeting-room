@@ -1,7 +1,7 @@
 from typing import List, Optional
 import uuid
 import time
-from app.models.models import Room, Booking, TimeSlot
+from app.models.models import Room
 from app.repositories.rooms_repo import RoomRepository
 from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
 

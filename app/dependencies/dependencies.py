@@ -9,8 +9,6 @@ from app.services.auth_service import AuthService
 from app.services.users_service import UserService
 from app.services.rooms_service import RoomService
 from app.services.bookings_service import BookingService
-from app.utils.jwt_utils import jwt_generator
-from app.utils.password_utils import password_hasher
 
 
 @lru_cache()
@@ -38,12 +36,12 @@ def get_booking_repository() -> BookingRepository:
 
 @lru_cache()
 def get_auth_service() -> AuthService:
-    return AuthService(get_user_repository(), jwt_generator, password_hasher)
+    return AuthService(get_user_repository())
 
 
 @lru_cache()
 def get_user_service() -> UserService:
-    return UserService(get_user_repository(), password_hasher)
+    return UserService(get_user_repository(), get_booking_repository())
 
 
 @lru_cache()

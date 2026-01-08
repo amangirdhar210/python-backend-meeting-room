@@ -1,8 +1,8 @@
-from typing import Dict, Any
+from typing import Dict
 from fastapi import APIRouter, Depends
 from app.models.pydantic_models import LoginUserRequest, LoginUserResponse, UserDTO
 from app.services.auth_service import AuthService
-from app.utils.dependencies import get_auth_service
+from app.dependencies.dependencies import get_auth_service
 from app.utils.errors import InvalidInputError, UnauthorizedError
 
 

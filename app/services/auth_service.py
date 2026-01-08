@@ -2,21 +2,13 @@ from typing import Tuple
 from app.models.models import User
 from app.repositories.users_repo import UserRepository
 from app.utils.errors import InvalidInputError, UnauthorizedError
-from app.utils.jwt_utils import JWTGenerator
-from app.utils.password_utils import PasswordHasher
+from app.utils import jwt_utils, password_utils
 
 
 class AuthService:
 
-    def __init__(
-        self,
-        user_repository: UserRepository,
-        token_generator: JWTGenerator,
-        password_hasher: PasswordHasher,
-    ) -> None:
+    def __init__(self, user_repository: UserRepository) -> None:
         self.user_repo: UserRepository = user_repository
-        self.token_generator: JWTGenerator = token_generator
-        self.password_hasher: PasswordHasher = password_hasher
 
     async def login(self, email: str, password: str) -> Tuple[str, User]:
         email = email.strip()
@@ -29,9 +21,9 @@ class AuthService:
         if not user:
             raise UnauthorizedError("Invalid credentials")
 
-        if not self.password_hasher.verify_password(user.password, password):
+        if not password_utils.verify_password(user.password, password):
             raise UnauthorizedError("Invalid credentials")
 
-        token: str = self.token_generator.generate_token(user.id, user.role)
+        token: str = jwt_utils.generate_token(user.id, user.role)
 
         return token, user

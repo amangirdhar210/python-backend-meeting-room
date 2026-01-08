@@ -3,17 +3,20 @@ import uuid
 import time
 from app.models.models import User
 from app.repositories.users_repo import UserRepository
+from app.repositories.bookings_repo import BookingRepository
 from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
-from app.utils.password_utils import PasswordHasher
+from app.utils import password_utils
 
 
 class UserService:
 
     def __init__(
-        self, user_repository: UserRepository, password_hasher: PasswordHasher
+        self,
+        user_repository: UserRepository,
+        booking_repository: BookingRepository = None,
     ) -> None:
         self.user_repo: UserRepository = user_repository
-        self.password_hasher: PasswordHasher = password_hasher
+        self.booking_repo: BookingRepository = booking_repository
 
     async def register(self, user: User) -> None:
         if not user:
@@ -34,7 +37,7 @@ class UserService:
         except NotFoundError:
             pass
 
-        hashed: str = self.password_hasher.hash_password(user.password)
+        hashed: str = password_utils.hash_password(user.password)
         user.id = str(uuid.uuid4())
         user.password = hashed
         user.created_at = int(time.time())
@@ -56,4 +59,8 @@ class UserService:
     async def delete_user_by_id(self, user_id: str) -> None:
         if not user_id:
             raise InvalidInputError("User ID is required")
+
+        if self.booking_repo:
+            await self.booking_repo.delete_by_user_id(user_id)
+
         await self.user_repo.delete_by_id(user_id)

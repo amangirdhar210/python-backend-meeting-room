@@ -1,21 +1,30 @@
-from fastapi import APIRouter, Depends
-from typing import List, Dict, Any
-from app.services.users_service import UserService
+from fastapi import APIRouter, Depends, Request
+from typing import List
 from app.models.models import User
 from app.models.pydantic_models import RegisterUserRequest, UserDTO, GenericResponse
-from app.utils.dependencies import get_user_service
-from app.utils.auth_middleware import require_admin, require_user
+from app.services.users_service import UserService
+from app.dependencies.dependencies import get_user_service
+from app.middleware.auth_middleware import set_current_user, require_admin_state
 from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
 
 
-users_router: APIRouter = APIRouter(prefix="/api", tags=["Users"])
+users_router: APIRouter = APIRouter(
+    prefix="/api",
+    tags=["Users"],
+    dependencies=[Depends(set_current_user)],
+)
 
 
-@users_router.post("/users/register", response_model=GenericResponse, status_code=201)
+@users_router.post(
+    "/users/register",
+    response_model=GenericResponse,
+    status_code=201,
+    dependencies=[Depends(require_admin_state)],
+)
 async def register(
+    req: Request,
     request: RegisterUserRequest,
     user_service: UserService = Depends(get_user_service),
-    current_user: Dict[str, Any] = Depends(require_admin),
 ) -> GenericResponse:
     user: User = User(
         name=request.name,
@@ -27,10 +36,12 @@ async def register(
     return GenericResponse(message="user registered successfully")
 
 
-@users_router.get("/users", response_model=List[UserDTO])
+@users_router.get(
+    "/users", response_model=List[UserDTO], dependencies=[Depends(require_admin_state)]
+)
 async def get_all_users(
+    req: Request,
     user_service: UserService = Depends(get_user_service),
-    current_user: Dict[str, Any] = Depends(require_admin),
 ) -> List[UserDTO]:
     users: List[User] = await user_service.get_all_users()
     return [UserDTO(**u.model_dump(exclude={"password"})) for u in users]
@@ -38,19 +49,23 @@ async def get_all_users(
 
 @users_router.get("/users/{user_id}", response_model=UserDTO)
 async def get_user_by_id(
+    req: Request,
     user_id: str,
     user_service: UserService = Depends(get_user_service),
-    current_user: Dict[str, Any] = Depends(require_user),
 ) -> UserDTO:
     user: User = await user_service.get_user_by_id(user_id)
     return UserDTO(**user.model_dump(exclude={"password"}))
 
 
-@users_router.delete("/users/{id}", response_model=GenericResponse)
+@users_router.delete(
+    "/users/{id}",
+    response_model=GenericResponse,
+    dependencies=[Depends(require_admin_state)],
+)
 async def delete_user_by_id(
+    req: Request,
     id: str,
     user_service: UserService = Depends(get_user_service),
-    current_user: Dict[str, Any] = Depends(require_admin),
 ) -> GenericResponse:
     await user_service.delete_user_by_id(id)
     return GenericResponse(message="user deleted successfully")

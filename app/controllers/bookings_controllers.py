@@ -1,6 +1,5 @@
-from fastapi import APIRouter, Depends, Query
-from typing import List, Dict, Any
-from app.services.bookings_service import BookingService
+from fastapi import APIRouter, Depends, Query, Request
+from typing import List
 from app.models.models import Booking
 from app.models.pydantic_models import (
     CreateBookingRequest,
@@ -9,8 +8,9 @@ from app.models.pydantic_models import (
     RoomScheduleResponse as RoomScheduleDTO,
     ScheduleSlotDTO,
 )
-from app.utils.dependencies import get_booking_service
-from app.utils.auth_middleware import require_user, require_admin
+from app.services.bookings_service import BookingService
+from app.dependencies.dependencies import get_booking_service
+from app.middleware.auth_middleware import set_current_user, require_admin_state
 from app.utils.errors import (
     InvalidInputError,
     NotFoundError,
@@ -19,17 +19,21 @@ from app.utils.errors import (
 )
 
 
-bookings_router: APIRouter = APIRouter(prefix="/api", tags=["Bookings"])
+bookings_router: APIRouter = APIRouter(
+    prefix="/api",
+    tags=["Bookings"],
+    dependencies=[Depends(set_current_user)],
+)
 
 
 @bookings_router.post("/bookings", response_model=GenericResponse, status_code=201)
 async def create_booking(
+    req: Request,
     request: CreateBookingRequest,
     booking_service: BookingService = Depends(get_booking_service),
-    current_user: Dict[str, Any] = Depends(require_user),
 ) -> GenericResponse:
     booking: Booking = Booking(
-        user_id=current_user.get("user_id") or "",
+        user_id=req.state.user.get("user_id"),
         room_id=request.room_id,
         start_time=request.start_time,
         end_time=request.end_time,
@@ -41,9 +45,9 @@ async def create_booking(
 
 @bookings_router.get("/bookings/{booking_id}", response_model=BookingDTO)
 async def get_booking_by_id(
+    req: Request,
     booking_id: str,
     booking_service: BookingService = Depends(get_booking_service),
-    current_user: Dict[str, Any] = Depends(require_user),
 ) -> BookingDTO:
     booking: Booking = await booking_service.get_booking_by_id(booking_id)
     return BookingDTO(**booking.model_dump())
@@ -51,9 +55,9 @@ async def get_booking_by_id(
 
 @bookings_router.delete("/bookings/{id}", response_model=GenericResponse)
 async def cancel_booking(
+    req: Request,
     id: str,
     booking_service: BookingService = Depends(get_booking_service),
-    current_user: Dict[str, Any] = Depends(require_user),
 ) -> GenericResponse:
     await booking_service.cancel_booking(id)
     return GenericResponse(message="booking cancelled successfully")
@@ -61,22 +65,22 @@ async def cancel_booking(
 
 @bookings_router.get("/bookings", response_model=List[BookingDTO])
 async def get_all_bookings(
+    req: Request,
     booking_service: BookingService = Depends(get_booking_service),
-    current_user: Dict[str, Any] = Depends(require_user),
 ) -> List[BookingDTO]:
-    if current_user.get("role") == "admin":
+    if req.state.user.get("role") == "admin":
         bookings: List[Booking] = await booking_service.get_all_bookings()
     else:
-        user_id: Any = current_user.get("user_id")
+        user_id: str = req.state.user.get("user_id")
         bookings = await booking_service.get_bookings_by_user_id(user_id)
     return [BookingDTO(**b.model_dump()) for b in bookings]
 
 
 @bookings_router.get("/rooms/{room_id}/bookings", response_model=List[BookingDTO])
 async def get_bookings_by_room_id(
+    req: Request,
     room_id: str,
     booking_service: BookingService = Depends(get_booking_service),
-    current_user: Dict[str, Any] = Depends(require_user),
 ) -> List[BookingDTO]:
     bookings: List[Booking] = await booking_service.get_bookings_by_room_id(room_id)
     return [BookingDTO(**b.model_dump()) for b in bookings]
@@ -84,20 +88,20 @@ async def get_bookings_by_room_id(
 
 @bookings_router.get("/bookings/my", response_model=List[BookingDTO])
 async def get_bookings_by_user_id(
+    req: Request,
     booking_service: BookingService = Depends(get_booking_service),
-    current_user: Dict[str, Any] = Depends(require_user),
 ) -> List[BookingDTO]:
-    user_id: Any = current_user.get("user_id")
+    user_id: str = req.state.user.get("user_id")
     bookings: List[Booking] = await booking_service.get_bookings_by_user_id(user_id)
     return [BookingDTO(**b.model_dump()) for b in bookings]
 
 
 @bookings_router.get("/rooms/{room_id}/schedule", response_model=RoomScheduleDTO)
 async def get_room_schedule_by_date(
+    req: Request,
     room_id: str,
     date: str = Query(..., description="Date in YYYY-MM-DD format"),
     booking_service: BookingService = Depends(get_booking_service),
-    current_user: Dict[str, Any] = Depends(require_user),
 ) -> RoomScheduleDTO:
     try:
         from datetime import datetime, timezone
