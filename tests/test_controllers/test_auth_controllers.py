@@ -6,16 +6,13 @@ from app.utils.errors import InvalidInputError, UnauthorizedError
 
 
 class TestAuthControllers:
-    """Test suite for authentication controller endpoints"""
 
     @pytest.fixture
     def mock_auth_service(self):
-        """Mock AuthService for testing"""
         return MagicMock()
 
     @pytest.fixture
     def client(self, mock_auth_service):
-        """FastAPI test client with mocked dependencies"""
         from fastapi import FastAPI
         from app.controllers.auth_controllers import auth_router
         from app.dependencies.dependencies import get_auth_service
@@ -39,7 +36,6 @@ class TestAuthControllers:
 
     @pytest.fixture
     def sample_user(self):
-        """Sample user for testing"""
         return User(
             id="user-123",
             name="John Doe",
@@ -51,7 +47,6 @@ class TestAuthControllers:
         )
 
     def test_login_success(self, client, mock_auth_service, sample_user):
-        """Test successful login"""
         mock_auth_service.login = AsyncMock(
             return_value=("mock-jwt-token", sample_user)
         )
@@ -74,7 +69,6 @@ class TestAuthControllers:
         )
 
     def test_login_invalid_credentials(self, client, mock_auth_service):
-        """Test login with invalid credentials"""
         mock_auth_service.login = AsyncMock(
             side_effect=UnauthorizedError("Invalid credentials")
         )
@@ -110,7 +104,6 @@ class TestAuthControllers:
         assert response.status_code == 422, f"Failed for case: {description}"
 
     def test_login_service_error(self, client, mock_auth_service):
-        """Test login when service throws unexpected error"""
         mock_auth_service.login = AsyncMock(side_effect=Exception("Database error"))
 
         response = client.post(
@@ -147,7 +140,6 @@ class TestAuthControllers:
         assert data["user"]["id"] == "admin-456"
 
     def test_health_check(self, client):
-        """Test health check endpoint"""
         response = client.get("/health")
 
         assert response.status_code == 200

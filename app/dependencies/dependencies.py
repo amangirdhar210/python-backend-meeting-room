@@ -1,7 +1,5 @@
-import boto3
-from typing import Any
-from functools import lru_cache
-from app.config.config import settings
+from typing import Annotated, Any
+from fastapi import Depends, Request
 from app.repositories.users_repo import UserRepository
 from app.repositories.rooms_repo import RoomRepository
 from app.repositories.bookings_repo import BookingRepository
@@ -11,46 +9,43 @@ from app.services.rooms_service import RoomService
 from app.services.bookings_service import BookingService
 
 
-@lru_cache()
-def get_dynamodb_client() -> Any:
-    return boto3.resource("dynamodb", region_name=settings.AWS_REGION)
+def get_dynamodb_client(request: Request) -> Any:
+    return request.app.state.db_client
 
 
-@lru_cache()
-def get_user_repository() -> UserRepository:
-    dynamodb: Any = get_dynamodb_client()
-    return UserRepository(dynamodb, settings.DYNAMODB_TABLE_NAME)
+def get_user_repository(request: Request) -> UserRepository:
+    return request.app.state.user_repo
 
 
-@lru_cache()
-def get_room_repository() -> RoomRepository:
-    dynamodb: Any = get_dynamodb_client()
-    return RoomRepository(dynamodb, settings.DYNAMODB_TABLE_NAME)
+def get_room_repository(request: Request) -> RoomRepository:
+    return request.app.state.room_repo
 
 
-@lru_cache()
-def get_booking_repository() -> BookingRepository:
-    dynamodb: Any = get_dynamodb_client()
-    return BookingRepository(dynamodb, settings.DYNAMODB_TABLE_NAME)
+def get_booking_repository(request: Request) -> BookingRepository:
+    return request.app.state.booking_repo
 
 
-@lru_cache()
-def get_auth_service() -> AuthService:
-    return AuthService(get_user_repository())
+def get_auth_service(request: Request) -> AuthService:
+    return request.app.state.auth_service
 
 
-@lru_cache()
-def get_user_service() -> UserService:
-    return UserService(get_user_repository(), get_booking_repository())
+def get_user_service(request: Request) -> UserService:
+    return request.app.state.user_service
 
 
-@lru_cache()
-def get_room_service() -> RoomService:
-    return RoomService(get_room_repository())
+def get_room_service(request: Request) -> RoomService:
+    return request.app.state.room_service
 
 
-@lru_cache()
-def get_booking_service() -> BookingService:
-    return BookingService(
-        get_booking_repository(), get_room_repository(), get_user_repository()
-    )
+def get_booking_service(request: Request) -> BookingService:
+    return request.app.state.booking_service
+
+
+DynamoDBResource = Annotated[Any, Depends(get_dynamodb_client)]
+UserRepoInstance = Annotated[UserRepository, Depends(get_user_repository)]
+RoomRepoInstance = Annotated[RoomRepository, Depends(get_room_repository)]
+BookingRepoInstance = Annotated[BookingRepository, Depends(get_booking_repository)]
+AuthServiceInstance = Annotated[AuthService, Depends(get_auth_service)]
+UserServiceInstance = Annotated[UserService, Depends(get_user_service)]
+RoomServiceInstance = Annotated[RoomService, Depends(get_room_service)]
+BookingServiceInstance = Annotated[BookingService, Depends(get_booking_service)]

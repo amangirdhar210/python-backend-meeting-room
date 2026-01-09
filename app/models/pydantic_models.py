@@ -28,6 +28,12 @@ class RegisterUserRequest(BaseModel):
     role: str = Field(pattern="^(user|admin)$")
 
 
+class UpdateUserRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    email: Optional[EmailStr] = None
+    role: Optional[str] = Field(default=None, pattern="^(user|admin)$")
+
+
 class RoomDTO(BaseModel):
     id: str = Field(min_length=1)
     name: str = Field(min_length=1, max_length=100)
@@ -59,6 +65,27 @@ class AddRoomRequest(BaseModel):
     @field_validator("amenities")
     @classmethod
     def validate_amenities(cls, v: List[str]) -> List[str]:
+        if v:
+            for amenity in v:
+                if not amenity or len(amenity) > 50:
+                    raise ValueError("Each amenity must be 1-50 characters")
+        return v
+
+
+class UpdateRoomRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    capacity: Optional[int] = Field(default=None, gt=0, le=1000)
+    amenities: Optional[List[str]] = Field(default=None, max_length=50)
+    status: Optional[str] = Field(
+        default=None, pattern="^(available|unavailable|maintenance)$"
+    )
+    location: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=500)
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator("amenities")
+    @classmethod
+    def validate_amenities(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         if v:
             for amenity in v:
                 if not amenity or len(amenity) > 50:

@@ -68,7 +68,7 @@ class BookingRepository:
     ) -> List[Booking]:
         response = await asyncio.to_thread(
             self.table.query,
-            IndexName="LSI-5",
+            IndexName="RoomIDIndex",
             KeyConditionExpression=Key("PK").eq("BOOKING") & Key("RoomID").eq(room_id),
             FilterExpression=Attr("EndTime").gt(start_time)
             & Attr("StartTime").lt(end_time),
@@ -78,7 +78,7 @@ class BookingRepository:
     async def get_by_room_id(self, room_id: str) -> List[Booking]:
         response = await asyncio.to_thread(
             self.table.query,
-            IndexName="LSI-5",
+            IndexName="RoomIDIndex",
             KeyConditionExpression=Key("PK").eq("BOOKING") & Key("RoomID").eq(room_id),
         )
         return self._unmarshal_bookings(response.get("Items", []))
@@ -86,7 +86,7 @@ class BookingRepository:
     async def get_by_user_id(self, user_id: str) -> List[Booking]:
         response = await asyncio.to_thread(
             self.table.query,
-            IndexName="LSI-3",
+            IndexName="UserIDIndex",
             KeyConditionExpression=Key("PK").eq("BOOKING") & Key("UserID").eq(user_id),
         )
         return self._unmarshal_bookings(response.get("Items", []))
@@ -104,7 +104,7 @@ class BookingRepository:
     async def delete_by_user_id(self, user_id: str) -> int:
         response = await asyncio.to_thread(
             self.table.query,
-            IndexName="LSI-3",
+            IndexName="UserIDIndex",
             KeyConditionExpression=Key("PK").eq("BOOKING") & Key("UserID").eq(user_id),
             ProjectionExpression="SK",
         )
@@ -134,7 +134,7 @@ class BookingRepository:
     async def get_by_date_range(self, start_date: int, end_date: int) -> List[Booking]:
         response = await asyncio.to_thread(
             self.table.query,
-            IndexName="LSI-4",
+            IndexName="DateIndex",
             KeyConditionExpression=Key("PK").eq("BOOKING")
             & Key("Date").between(start_date, end_date),
         )
@@ -146,7 +146,7 @@ class BookingRepository:
 
         response = await asyncio.to_thread(
             self.table.query,
-            IndexName="LSI-5",
+            IndexName="RoomIDIndex",
             KeyConditionExpression=Key("PK").eq("BOOKING") & Key("RoomID").eq(room_id),
             FilterExpression=Attr("EndTime").gt(start_of_day)
             & Attr("StartTime").lt(end_of_day),

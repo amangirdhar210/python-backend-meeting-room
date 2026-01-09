@@ -47,9 +47,7 @@ class RoomService:
 
     async def get_all_rooms(self) -> List[Room]:
         rooms: List[Room] = await self.room_repo.get_all()
-        if not rooms:
-            raise NotFoundError("No rooms found")
-        return rooms
+        return rooms if rooms else []
 
     async def get_room_by_id(self, room_id: str) -> Room:
         if not room_id:
@@ -60,23 +58,37 @@ class RoomService:
             raise NotFoundError("Room not found")
         return room
 
+    async def update_room(self, room_id: str, update_data) -> None:
+        if not room_id:
+            raise InvalidInputError("Room ID is required")
+
+        room: Room = await self.room_repo.get_by_id(room_id)
+
+        if update_data.name:
+            room.name = update_data.name.strip()
+
+        if update_data.capacity is not None:
+            room.capacity = update_data.capacity
+
+        if update_data.amenities is not None:
+            room.amenities = update_data.amenities
+
+        if update_data.status:
+            room.status = update_data.status
+
+        if update_data.location:
+            room.location = update_data.location.strip()
+
+        if update_data.description is not None:
+            room.description = update_data.description
+
+        room.updated_at = int(time.time())
+        await self.room_repo.update(room)
+
     async def delete_room_by_id(self, room_id: str) -> None:
         if not room_id:
             raise InvalidInputError("Room ID is required")
         await self.room_repo.delete_by_id(room_id)
-
-    async def search_rooms(
-        self,
-        min_capacity: int,
-        max_capacity: int,
-        floor: Optional[int],
-        start_time: Optional[int],
-        end_time: Optional[int],
-    ) -> List[Room]:
-        rooms: List[Room] = await self.room_repo.search_with_filters(
-            min_capacity, max_capacity, floor
-        )
-        return rooms
 
     # def check_availability(
     #     self, room_id: str, start_time: int, end_time: int

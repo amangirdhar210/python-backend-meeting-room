@@ -1,5 +1,8 @@
 import os
 from typing import List
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class Settings:
@@ -12,6 +15,10 @@ class Settings:
     CORS_ALLOWED_ORIGINS: List[str] = [
         "http://localhost:4200",
         "http://127.0.0.1:4200",
+    ]
+
+    SUPERADMIN_EMAILS: List[str] = [
+        "admin@example.com",
     ]
 
     SERVER_PORT: int = int(os.getenv("SERVER_PORT", "8000"))

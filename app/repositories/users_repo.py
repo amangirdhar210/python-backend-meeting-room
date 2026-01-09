@@ -115,6 +115,56 @@ class UserRepository:
 
         return users
 
+    async def update(self, user: User, old_email: Optional[str] = None) -> None:
+        if not user:
+            raise InvalidInputError("User is required")
+
+        transact_items = []
+
+        # If email changed, delete old email lookup and create new one
+        if old_email and old_email != user.email:
+            transact_items.append(
+                {
+                    "Delete": {
+                        "TableName": self.table.table_name,
+                        "Key": {"PK": "USER", "SK": old_email},
+                    }
+                }
+            )
+            transact_items.append(
+                {
+                    "Put": {
+                        "TableName": self.table.table_name,
+                        "Item": {"PK": "USER", "SK": user.email, "ID": user.id},
+                    }
+                }
+            )
+
+        # Update main user record
+        transact_items.append(
+            {
+                "Put": {
+                    "TableName": self.table.table_name,
+                    "Item": {
+                        "PK": "USER",
+                        "SK": f"USER#{user.id}",
+                        "ID": user.id,
+                        "Name": user.name,
+                        "Email": user.email,
+                        "Password": user.password,
+                        "Role": user.role,
+                        "CreatedAt": user.created_at,
+                        "UpdatedAt": user.updated_at,
+                    },
+                }
+            }
+        )
+
+        await asyncio.to_thread(
+            self.table.meta.client.transact_write_items,
+            TransactItems=transact_items,
+        )
+
     async def delete_by_id(self, user_id: str) -> None:
         if not user_id:
             raise InvalidInputError("User ID is required")

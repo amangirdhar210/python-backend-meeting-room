@@ -1,9 +1,14 @@
 from fastapi import APIRouter, Depends, Query, Request
 from typing import Optional, List
 from app.models.models import Room
-from app.models.pydantic_models import AddRoomRequest, RoomDTO, GenericResponse
+from app.models.pydantic_models import (
+    AddRoomRequest,
+    UpdateRoomRequest,
+    RoomDTO,
+    GenericResponse,
+)
 from app.services.rooms_service import RoomService
-from app.dependencies.dependencies import get_room_service
+from app.dependencies.dependencies import get_room_service, RoomServiceInstance
 from app.middleware.auth_middleware import set_current_user, require_admin_state
 from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
 
@@ -24,7 +29,7 @@ rooms_router: APIRouter = APIRouter(
 async def add_room(
     req: Request,
     request: AddRoomRequest,
-    room_service: RoomService = Depends(get_room_service),
+    room_service: RoomServiceInstance,
 ) -> GenericResponse:
     room: Room = Room(
         name=request.name,
@@ -40,23 +45,37 @@ async def add_room(
     return GenericResponse(message="room added successfully")
 
 
-@rooms_router.get("/rooms", response_model=List[RoomDTO])
+@rooms_router.get("/rooms", response_model=List[RoomDTO], dependencies=[])
 async def get_all_rooms(
-    req: Request,
-    room_service: RoomService = Depends(get_room_service),
+    room_service: RoomServiceInstance,
 ) -> List[RoomDTO]:
     rooms: List[Room] = await room_service.get_all_rooms()
-    return [RoomDTO(**r.model_dump()) for r in rooms]
+    return [RoomDTO(**{**r.model_dump(), "status": r.status.lower()}) for r in rooms]
 
 
 @rooms_router.get("/rooms/{id}", response_model=RoomDTO)
 async def get_room_by_id(
     req: Request,
     id: str,
-    room_service: RoomService = Depends(get_room_service),
+    room_service: RoomServiceInstance,
 ) -> RoomDTO:
     room: Room = await room_service.get_room_by_id(id)
-    return RoomDTO(**room.model_dump())
+    return RoomDTO(**{**room.model_dump(), "status": room.status.lower()})
+
+
+@rooms_router.put(
+    "/rooms/{id}",
+    response_model=GenericResponse,
+    dependencies=[Depends(require_admin_state)],
+)
+async def update_room(
+    req: Request,
+    id: str,
+    request: UpdateRoomRequest,
+    room_service: RoomServiceInstance,
+) -> GenericResponse:
+    await room_service.update_room(id, request)
+    return GenericResponse(message="room updated successfully")
 
 
 @rooms_router.delete(
@@ -67,23 +86,7 @@ async def get_room_by_id(
 async def delete_room_by_id(
     req: Request,
     id: str,
-    room_service: RoomService = Depends(get_room_service),
+    room_service: RoomServiceInstance,
 ) -> GenericResponse:
     await room_service.delete_room_by_id(id)
     return GenericResponse(message="room deleted successfully")
-
-
-@rooms_router.get("/rooms/search", response_model=List[RoomDTO])
-async def search_rooms(
-    req: Request,
-    min_capacity: int = Query(default=0),
-    max_capacity: int = Query(default=0),
-    floor: Optional[int] = Query(default=None),
-    start_time: Optional[int] = Query(default=None),
-    end_time: Optional[int] = Query(default=None),
-    room_service: RoomService = Depends(get_room_service),
-) -> List[RoomDTO]:
-    rooms: List[Room] = await room_service.search_rooms(
-        min_capacity, max_capacity, floor, start_time, end_time
-    )
-    return [RoomDTO(**r.model_dump()) for r in rooms]

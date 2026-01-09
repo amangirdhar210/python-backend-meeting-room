@@ -7,3 +7,4 @@
 *tmp.py
 *.coverage
 *mypy.ini
+*temp.txt
