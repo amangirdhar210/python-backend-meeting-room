@@ -57,12 +57,20 @@ class UserService:
             raise InvalidInputError("Invalid user ID")
         return await self.user_repo.get_by_id(user_id)
 
-    async def update_user(self, user_id: str, update_data) -> None:
+    async def update_user(
+        self, user_id: str, update_data, current_user_id: Optional[str] = None
+    ) -> None:
         if not user_id:
             raise InvalidInputError("User ID is required")
 
         user: User = await self.user_repo.get_by_id(user_id)
         old_email = user.email
+
+        if current_user_id and user_id == current_user_id:
+            raise InvalidInputError("You cannot edit your own account")
+
+        if user.email.lower() in settings.SUPERADMIN_EMAILS:
+            raise InvalidInputError("Superadmin accounts cannot be updated")
 
         if update_data.email and update_data.email != user.email:
             try:

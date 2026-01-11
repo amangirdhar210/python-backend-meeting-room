@@ -73,7 +73,8 @@ async def update_user(
     request: UpdateUserRequest,
     user_service: UserServiceInstance,
 ) -> GenericResponse:
-    await user_service.update_user(id, request)
+    current_user_id: str = req.state.user.get("user_id")
+    await user_service.update_user(id, request, current_user_id)
     return GenericResponse(message="user updated successfully")
 
 

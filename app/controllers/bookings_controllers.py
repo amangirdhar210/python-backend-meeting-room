@@ -43,6 +43,18 @@ async def create_booking(
     return GenericResponse(message="booking created successfully")
 
 
+@bookings_router.get("/bookings/my", response_model=List[BookingDTO])
+async def get_my_bookings(
+    req: Request,
+    booking_service: BookingServiceInstance,
+) -> List[BookingDTO]:
+    user_id: str = req.state.user.get("user_id")
+    bookings: List[Booking] = await booking_service.get_bookings_by_user_id(user_id)
+    return [
+        BookingDTO(**{**b.model_dump(), "status": b.status.lower()}) for b in bookings
+    ]
+
+
 @bookings_router.get("/bookings/{booking_id}", response_model=BookingDTO)
 async def get_booking_by_id(
     req: Request,
@@ -85,18 +97,6 @@ async def get_bookings_by_room_id(
     booking_service: BookingServiceInstance,
 ) -> List[BookingDTO]:
     bookings: List[Booking] = await booking_service.get_bookings_by_room_id(room_id)
-    return [
-        BookingDTO(**{**b.model_dump(), "status": b.status.lower()}) for b in bookings
-    ]
-
-
-@bookings_router.get("/bookings/my", response_model=List[BookingDTO])
-async def get_bookings_by_user_id(
-    req: Request,
-    booking_service: BookingServiceInstance,
-) -> List[BookingDTO]:
-    user_id: str = req.state.user.get("user_id")
-    bookings: List[Booking] = await booking_service.get_bookings_by_user_id(user_id)
     return [
         BookingDTO(**{**b.model_dump(), "status": b.status.lower()}) for b in bookings
     ]
