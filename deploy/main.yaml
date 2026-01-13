@@ -1,0 +1,153 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Meeting Room Booking API - Main Stack (Nested Stacks)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID for the ECS cluster
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnet IDs for ECS tasks and load balancer
+
+  ContainerImage:
+    Type: String
+    Description: ECR image URI
+    Default: 278273886744.dkr.ecr.ap-south-1.amazonaws.com/meeting-room-api:latest
+
+  DynamoDBTableName:
+    Type: String
+    Default: MeetingRoomTable
+
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    Description: JWT Secret Key
+
+  CertificateArn:
+    Type: String
+    Default: "arn:aws:acm:ap-south-1:278273886744:certificate/54dc3691-7c1f-406f-8217-13cb78198a9e"
+    Description: ACM Certificate ARN for HTTPS
+
+  DesiredCount:
+    Type: Number
+    Default: 2
+    Description: Desired number of ECS tasks
+
+  MinCapacity:
+    Type: Number
+    Default: 2
+    Description: Minimum number of tasks for auto scaling
+
+  MaxCapacity:
+    Type: Number
+    Default: 10
+    Description: Maximum number of tasks for auto scaling
+
+  TemplatesBucketName:
+    Type: String
+    Description: S3 bucket name where nested templates are stored
+
+Conditions:
+  HasCertificate: !Not [!Equals [!Ref CertificateArn, ""]]
+
+Resources:
+  IAMStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/iam.yaml
+      Parameters:
+        StackName: !Ref AWS::StackName
+        DynamoDBTableName: !Ref DynamoDBTableName
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  SecurityGroupStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/security-groups.yaml
+      Parameters:
+        StackName: !Ref AWS::StackName
+        VpcId: !Ref VpcId
+        EnableHTTPS: !If [HasCertificate, "true", "false"]
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  ALBStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: SecurityGroupStack
+    Properties:
+      TemplateURL: !Sub https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/alb.yaml
+      Parameters:
+        StackName: !Ref AWS::StackName
+        VpcId: !Ref VpcId
+        SubnetIds: !Join [",", !Ref SubnetIds]
+        SecurityGroupId: !GetAtt SecurityGroupStack.Outputs.LoadBalancerSecurityGroupId
+        CertificateArn: !Ref CertificateArn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  ECSStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - IAMStack
+      - SecurityGroupStack
+      - ALBStack
+    Properties:
+      TemplateURL: !Sub https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/ecs.yaml
+      Parameters:
+        StackName: !Ref AWS::StackName
+        ContainerImage: !Ref ContainerImage
+        TaskExecutionRoleArn: !GetAtt IAMStack.Outputs.TaskExecutionRoleArn
+        TaskRoleArn: !GetAtt IAMStack.Outputs.TaskRoleArn
+        SubnetIds: !Join [",", !Ref SubnetIds]
+        SecurityGroupId: !GetAtt SecurityGroupStack.Outputs.ECSSecurityGroupId
+        TargetGroupArn: !GetAtt ALBStack.Outputs.TargetGroupArn
+        DynamoDBTableName: !Ref DynamoDBTableName
+        JwtSecret: !Ref JwtSecret
+        DesiredCount: !Ref DesiredCount
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  AutoScalingStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: ECSStack
+    Properties:
+      TemplateURL: !Sub https://${TemplatesBucketName}.s3.${AWS::Region}.amazonaws.com/autoscaling.yaml
+      Parameters:
+        StackName: !Ref AWS::StackName
+        ClusterName: !GetAtt ECSStack.Outputs.ClusterName
+        ServiceName: !GetAtt ECSStack.Outputs.ServiceName
+        MinCapacity: !Ref MinCapacity
+        MaxCapacity: !Ref MaxCapacity
+        TargetCPUUtilization: "70"
+        TargetRequestCountPerTarget: "1000"
+        TargetGroupArn: !GetAtt ALBStack.Outputs.TargetGroupArn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  LoadBalancerDNS:
+    Description: Load Balancer DNS Name
+    Value: !GetAtt ALBStack.Outputs.LoadBalancerDNS
+
+  ClusterName:
+    Description: ECS Cluster Name
+    Value: !GetAtt ECSStack.Outputs.ClusterName
+
+  ServiceName:
+    Description: ECS Service Name
+    Value: !GetAtt ECSStack.Outputs.ServiceName

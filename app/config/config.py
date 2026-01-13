@@ -12,10 +12,7 @@ class Settings:
     AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
     DYNAMODB_TABLE_NAME: str = os.getenv("TABLE_NAME", "MeetingRoomSystem")
 
-    CORS_ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:4200",
-        "http://127.0.0.1:4200",
-    ]
+    CORS_ALLOWED_ORIGINS: List[str] = ["*"]
 
     SUPERADMIN_EMAILS: List[str] = [
         "admin@example.com",

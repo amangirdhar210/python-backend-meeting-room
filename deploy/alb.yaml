@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Application Load Balancer and Target Group
+
+Parameters:
+  StackName:
+    Type: String
+    Description: Name of the parent stack
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID for the load balancer
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnet IDs for load balancer
+
+  SecurityGroupId:
+    Type: String
+    Description: Security Group ID for the load balancer
+
+  CertificateArn:
+    Type: String
+    Default: ""
+    Description: ACM Certificate ARN for HTTPS
+
+Conditions:
+  HasCertificate: !Not [!Equals [!Ref CertificateArn, ""]]
+
+Resources:
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${StackName}-alb
+      Type: application
+      Scheme: internet-facing
+      IpAddressType: ipv4
+      Subnets: !Ref SubnetIds
+      SecurityGroups:
+        - !Ref SecurityGroupId
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackName}-alb
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${StackName}-tg
+      Port: 8000
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VpcId
+      HealthCheckEnabled: true
+      HealthCheckPath: /health
+      HealthCheckProtocol: HTTP
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: 200
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "30"
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackName}-tg
+
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - !If
+          - HasCertificate
+          - Type: redirect
+            RedirectConfig:
+              Protocol: HTTPS
+              Port: "443"
+              StatusCode: HTTP_301
+          - Type: forward
+            TargetGroupArn: !Ref TargetGroup
+
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: HasCertificate
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+Outputs:
+  LoadBalancerArn:
+    Description: ARN of the Load Balancer
+    Value: !Ref LoadBalancer
+    Export:
+      Name: !Sub ${StackName}-LoadBalancerArn
+
+  LoadBalancerDNS:
+    Description: DNS name of the Load Balancer
+    Value: !GetAtt LoadBalancer.DNSName
+    Export:
+      Name: !Sub ${StackName}-LoadBalancerDNS
+
+  TargetGroupArn:
+    Description: ARN of the Target Group
+    Value: !Ref TargetGroup
+    Export:
+      Name: !Sub ${StackName}-TargetGroupArn
+
+  HttpListenerArn:
+    Description: ARN of the HTTP Listener
+    Value: !Ref HttpListener
+    Export:
+      Name: !Sub ${StackName}-HttpListenerArn

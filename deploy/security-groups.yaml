@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Security Groups for ECS and ALB
+
+Parameters:
+  StackName:
+    Type: String
+    Description: Name of the parent stack
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID for the security groups
+
+  EnableHTTPS:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+
+Conditions:
+  HasHTTPS: !Equals [!Ref EnableHTTPS, "true"]
+
+Resources:
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackName}-alb-sg
+      GroupDescription: Security group for Application Load Balancer
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Allow HTTP from anywhere
+        - !If
+          - HasHTTPS
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: 0.0.0.0/0
+            Description: Allow HTTPS from anywhere
+          - !Ref AWS::NoValue
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackName}-alb-sg
+
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${StackName}-ecs-sg
+      GroupDescription: Security group for ECS tasks
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          Description: Allow traffic from ALB
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackName}-ecs-sg
+
+Outputs:
+  LoadBalancerSecurityGroupId:
+    Description: ID of the Load Balancer Security Group
+    Value: !Ref LoadBalancerSecurityGroup
+    Export:
+      Name: !Sub ${StackName}-ALBSecurityGroupId
+
+  ECSSecurityGroupId:
+    Description: ID of the ECS Security Group
+    Value: !Ref ECSSecurityGroup
+    Export:
+      Name: !Sub ${StackName}-ECSSecurityGroupId

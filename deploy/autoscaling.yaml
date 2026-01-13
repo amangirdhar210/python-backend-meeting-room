@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Auto Scaling for ECS Service
+
+Parameters:
+  StackName:
+    Type: String
+    Description: Name of the parent stack
+
+  ClusterName:
+    Type: String
+    Description: Name of the ECS Cluster
+
+  ServiceName:
+    Type: String
+    Description: Name of the ECS Service
+
+  MinCapacity:
+    Type: Number
+    Default: 2
+    Description: Minimum number of tasks
+
+  MaxCapacity:
+    Type: Number
+    Default: 10
+    Description: Maximum number of tasks
+
+  TargetCPUUtilization:
+    Type: Number
+    Default: 70
+    Description: Target CPU utilization percentage
+
+  TargetRequestCountPerTarget:
+    Type: Number
+    Default: 1000
+    Description: Target number of requests per minute per task
+
+  TargetGroupArn:
+    Type: String
+    Description: ARN of the Target Group for request count metric
+
+Resources:
+  AutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: !Ref MaxCapacity
+      MinCapacity: !Ref MinCapacity
+      ResourceId: !Sub service/${ClusterName}/${ServiceName}
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  CPUScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub ${StackName}-cpu-scaling
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: !Ref TargetCPUUtilization
+        ScaleInCooldown: 300
+        ScaleOutCooldown: 60
+
+  RequestCountScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub ${StackName}-request-count-scaling
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ALBRequestCountPerTarget
+          ResourceLabel: !Sub
+            - ${LoadBalancerName}/${TargetGroupName}
+            - LoadBalancerName:
+                !Select [
+                  1,
+                  !Split [
+                    "/",
+                    !Select [0, !Split ["/target-group/", !Ref TargetGroupArn]],
+                  ],
+                ]
+              TargetGroupName:
+                !Select [1, !Split ["/target-group/", !Ref TargetGroupArn]]
+        TargetValue: !Ref TargetRequestCountPerTarget
+        ScaleInCooldown: 300
+        ScaleOutCooldown: 60
+
+Outputs:
+  AutoScalingTargetId:
+    Description: ID of the Auto Scaling Target
+    Value: !Ref AutoScalingTarget
+
+  CPUScalingPolicyArn:
+    Description: ARN of the CPU Scaling Policy
+    Value: !Ref CPUScalingPolicy
+
+  RequestCountScalingPolicyArn:
+    Description: ARN of the Request Count Scaling Policy
+    Value: !Ref RequestCountScalingPolicy

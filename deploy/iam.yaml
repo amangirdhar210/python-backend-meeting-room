@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: IAM Roles for ECS Tasks
+
+Parameters:
+  StackName:
+    Type: String
+    Description: Name of the parent stack
+
+  DynamoDBTableName:
+    Type: String
+    Default: MeetingRoomTable
+
+Resources:
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${StackName}-execution-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${StackName}-task-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:TransactWriteItems
+                Resource:
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}/index/*
+
+Outputs:
+  TaskExecutionRoleArn:
+    Description: ARN of the Task Execution Role
+    Value: !GetAtt TaskExecutionRole.Arn
+    Export:
+      Name: !Sub ${StackName}-TaskExecutionRoleArn
+
+  TaskRoleArn:
+    Description: ARN of the Task Role
+    Value: !GetAtt TaskRole.Arn
+    Export:
+      Name: !Sub ${StackName}-TaskRoleArn

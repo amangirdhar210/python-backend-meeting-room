@@ -1,0 +1,155 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: ECS Cluster, Task Definition, and Service
+
+Parameters:
+  StackName:
+    Type: String
+    Description: Name of the parent stack
+
+  ContainerImage:
+    Type: String
+    Description: ECR image URI
+
+  TaskExecutionRoleArn:
+    Type: String
+    Description: ARN of the Task Execution Role
+
+  TaskRoleArn:
+    Type: String
+    Description: ARN of the Task Role
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnet IDs for ECS tasks
+
+  SecurityGroupId:
+    Type: String
+    Description: Security Group ID for ECS tasks
+
+  TargetGroupArn:
+    Type: String
+    Description: Target Group ARN for the load balancer
+
+  DynamoDBTableName:
+    Type: String
+    Default: MeetingRoomTable
+
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    Description: JWT Secret Key
+
+  DesiredCount:
+    Type: Number
+    Default: 2
+    Description: Desired number of ECS tasks
+
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${StackName}-cluster
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackName}-cluster
+
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${StackName}
+      RetentionInDays: 7
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${StackName}-task
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: "1024"
+      Memory: "2048"
+      ExecutionRoleArn: !Ref TaskExecutionRoleArn
+      TaskRoleArn: !Ref TaskRoleArn
+      ContainerDefinitions:
+        - Name: meeting-room-api
+          Image: !Ref ContainerImage
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8000
+              Protocol: tcp
+          Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: TABLE_NAME
+              Value: !Ref DynamoDBTableName
+            - Name: SERVER_PORT
+              Value: "8000"
+            - Name: JWT_SECRET
+              Value: !Ref JwtSecret
+            - Name: MAX_BOOKING_DAYS_IN_FUTURE
+              Value: "10"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref CloudWatchLogsGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8000/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub ${StackName}-service
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets: !Ref SubnetIds
+          SecurityGroups:
+            - !Ref SecurityGroupId
+      LoadBalancers:
+        - ContainerName: meeting-room-api
+          ContainerPort: 8000
+          TargetGroupArn: !Ref TargetGroupArn
+      HealthCheckGracePeriodSeconds: 60
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackName}-service
+
+Outputs:
+  ClusterName:
+    Description: Name of the ECS Cluster
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub ${StackName}-ClusterName
+
+  ServiceName:
+    Description: Name of the ECS Service
+    Value: !GetAtt ECSService.Name
+    Export:
+      Name: !Sub ${StackName}-ServiceName
+
+  ServiceArn:
+    Description: ARN of the ECS Service
+    Value: !Ref ECSService
+    Export:
+      Name: !Sub ${StackName}-ServiceArn
