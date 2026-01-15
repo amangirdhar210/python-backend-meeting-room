@@ -3,7 +3,7 @@ import uuid
 import time
 from app.models.models import Room
 from app.repositories.rooms_repo import RoomRepository
-from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class RoomService:
@@ -12,20 +12,8 @@ class RoomService:
         self.room_repo: RoomRepository = room_repository
 
     async def add_room(self, room: Room) -> None:
-        if not room:
-            raise InvalidInputError("Room is required")
-
         room.name = room.name.strip()
         room.location = room.location.strip()
-
-        if (
-            not room.name
-            or room.capacity <= 0
-            or not room.location
-            or room.room_number <= 0
-            or room.floor < 0
-        ):
-            raise InvalidInputError("Invalid room data")
 
         if not room.status:
             room.status = "Available"
@@ -37,7 +25,7 @@ class RoomService:
             room.room_number, room.floor
         )
         if exists:
-            raise ConflictError("Room number already exists on this floor")
+            raise ApplicationError(ErrorCode.ROOM_ALREADY_EXISTS)
 
         room.id = str(uuid.uuid4())
         room.created_at = int(time.time())
@@ -50,18 +38,9 @@ class RoomService:
         return rooms if rooms else []
 
     async def get_room_by_id(self, room_id: str) -> Room:
-        if not room_id:
-            raise InvalidInputError("Room ID is required")
-
-        room = await self.room_repo.get_by_id(room_id)
-        if not room:
-            raise NotFoundError("Room not found")
-        return room
+        return await self.room_repo.get_by_id(room_id)
 
     async def update_room(self, room_id: str, update_data) -> None:
-        if not room_id:
-            raise InvalidInputError("Room ID is required")
-
         room: Room = await self.room_repo.get_by_id(room_id)
 
         if update_data.name:
@@ -86,30 +65,4 @@ class RoomService:
         await self.room_repo.update(room)
 
     async def delete_room_by_id(self, room_id: str) -> None:
-        if not room_id:
-            raise InvalidInputError("Room ID is required")
         await self.room_repo.delete_by_id(room_id)
-
-    # def check_availability(
-    #     self, room_id: str, start_time: int, end_time: int
-    # ) -> Tuple[bool, List[Booking]]:
-    #     if not room_id:
-    #         raise InvalidInputError("Room ID is required")
-
-    #     room = self.room_repo.get_by_id(room_id)
-    #     if not room:
-    #         raise NotFoundError("Room not found")
-
-    #     return True, []
-
-    # def get_available_slots(
-    #     self, room_id: str, date: int, slot_duration: int
-    # ) -> List[TimeSlot]:
-    #     if not room_id or slot_duration <= 0:
-    #         raise InvalidInputError("Invalid input")
-
-    #     room = self.room_repo.get_by_id(room_id)
-    #     if not room:
-    #         raise NotFoundError("Room not found")
-
-    #     return []

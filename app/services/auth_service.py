@@ -1,7 +1,7 @@
 from typing import Tuple
 from app.models.models import User
 from app.repositories.users_repo import UserRepository
-from app.utils.errors import InvalidInputError, UnauthorizedError
+from app.utils.errors import ApplicationError, ErrorCode
 from app.utils import jwt_utils, password_utils
 
 
@@ -14,15 +14,12 @@ class AuthService:
         email = email.strip()
         password = password.strip()
 
-        if not email or not password:
-            raise InvalidInputError("Email and password are required")
-
         user: User = await self.user_repo.find_by_email(email)
         if not user:
-            raise UnauthorizedError("Invalid credentials")
+            raise ApplicationError(ErrorCode.INVALID_CREDENTIALS)
 
         if not password_utils.verify_password(user.password, password):
-            raise UnauthorizedError("Invalid credentials")
+            raise ApplicationError(ErrorCode.INVALID_CREDENTIALS)
 
         token: str = jwt_utils.generate_token(user.id, user.role)
 

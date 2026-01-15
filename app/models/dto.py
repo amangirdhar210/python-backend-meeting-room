@@ -145,6 +145,23 @@ class RoomScheduleResponse(BaseModel):
     bookings: List[ScheduleSlotDTO] = Field(default_factory=list)
 
 
+class RoomScheduleRequest(BaseModel):
+    date: str = Field(
+        pattern=r"^\d{4}-\d{2}-\d{2}$", description="Date in YYYY-MM-DD format"
+    )
+
+    @field_validator("date")
+    @classmethod
+    def validate_date_format(cls, v: str) -> str:
+        from datetime import datetime
+
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+            return v
+        except ValueError:
+            raise ValueError("Invalid date. Must be a valid date in YYYY-MM-DD format")
+
+
 class ErrorResponse(BaseModel):
     error: str = Field(min_length=1)
 

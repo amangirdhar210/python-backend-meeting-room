@@ -24,7 +24,5 @@ def validate_token(token: str) -> Optional[Dict[str, Any]]:
             token, settings.JWT_SECRET, algorithms=["HS256"]
         )
         return payload
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, Request
 from typing import List
 from app.models.models import Booking
-from app.models.pydantic_models import (
+from app.models.dto import (
     CreateBookingRequest,
     BookingDTO,
     GenericResponse,
@@ -11,12 +11,7 @@ from app.models.pydantic_models import (
 from app.services.bookings_service import BookingService
 from app.dependencies.dependencies import get_booking_service, BookingServiceInstance
 from app.middleware.auth_middleware import set_current_user, require_admin_state
-from app.utils.errors import (
-    InvalidInputError,
-    NotFoundError,
-    RoomUnavailableError,
-    TimeRangeInvalidError,
-)
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 bookings_router: APIRouter = APIRouter(
@@ -107,18 +102,11 @@ async def get_room_schedule_by_date(
     req: Request,
     room_id: str,
     booking_service: BookingServiceInstance,
-    date: str = Query(..., description="Date in YYYY-MM-DD format"),
+    date: str = Query(
+        ..., pattern=r"^\d{4}-\d{2}-\d{2}$", description="Date in YYYY-MM-DD format"
+    ),
 ) -> RoomScheduleDTO:
-    try:
-        from datetime import datetime, timezone
-
-        date_obj = datetime.strptime(date, "%Y-%m-%d")
-        unix_timestamp = int(date_obj.replace(tzinfo=timezone.utc).timestamp())
-    except (ValueError, AttributeError):
-        raise InvalidInputError("Invalid date format. Use YYYY-MM-DD")
-
-    schedule = await booking_service.get_room_schedule_by_date(room_id, unix_timestamp)
-
+    schedule = await booking_service.get_room_schedule_by_date(room_id, date)
     return RoomScheduleDTO(
         room_id=schedule.room_id,
         room_name=schedule.room_name,

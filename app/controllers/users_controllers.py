@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from typing import List
 from app.models.models import User
-from app.models.pydantic_models import (
+from app.models.dto import (
     RegisterUserRequest,
     UpdateUserRequest,
     UserDTO,
@@ -10,7 +10,7 @@ from app.models.pydantic_models import (
 from app.services.users_service import UserService
 from app.dependencies.dependencies import get_user_service, UserServiceInstance
 from app.middleware.auth_middleware import set_current_user, require_admin_state
-from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 users_router: APIRouter = APIRouter(

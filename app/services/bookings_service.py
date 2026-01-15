@@ -12,12 +12,7 @@ from app.models.models import (
 from app.repositories.bookings_repo import BookingRepository
 from app.repositories.rooms_repo import RoomRepository
 from app.repositories.users_repo import UserRepository
-from app.utils.errors import (
-    InvalidInputError,
-    NotFoundError,
-    RoomUnavailableError,
-    TimeRangeInvalidError,
-)
+from app.utils.errors import ApplicationError, ErrorCode
 from app.utils.time_utils import is_time_range_valid, overlaps, is_within_booking_window
 from app.config.config import settings
 
@@ -35,29 +30,19 @@ class BookingService:
         self.user_repo: UserRepository = user_repository
 
     async def create_booking(self, booking: Booking) -> None:
-        if not booking:
-            raise InvalidInputError("Booking is required")
-
-        if not booking.user_id or not booking.room_id:
-            raise InvalidInputError("User ID and Room ID are required")
-
         if not is_time_range_valid(booking.start_time, booking.end_time):
-            raise TimeRangeInvalidError("Invalid time range")
+            raise ApplicationError(ErrorCode.INVALID_TIME_RANGE)
 
         if not is_within_booking_window(
             booking.start_time, settings.MAX_BOOKING_DAYS_IN_FUTURE
         ):
-            raise InvalidInputError(
-                f"Bookings can only be made up to {settings.MAX_BOOKING_DAYS_IN_FUTURE} days in advance"
+            raise ApplicationError(
+                ErrorCode.BOOKING_TOO_FAR,
+                message=f"Bookings can only be made up to {settings.MAX_BOOKING_DAYS_IN_FUTURE} days in advance",
             )
 
         user = await self.user_repo.get_by_id(booking.user_id)
-        if not user:
-            raise NotFoundError("User not found")
-
         room = await self.room_repo.get_by_id(booking.room_id)
-        if not room:
-            raise NotFoundError("Room not found")
 
         existing_bookings: List[Booking] = await self.booking_repo.get_by_room_and_time(
             booking.room_id, booking.start_time, booking.end_time
@@ -65,9 +50,7 @@ class BookingService:
 
         for b in existing_bookings:
             if overlaps(booking.start_time, booking.end_time, b.start_time, b.end_time):
-                raise RoomUnavailableError(
-                    "Room is not available for the selected time slot"
-                )
+                raise ApplicationError(ErrorCode.ROOM_UNAVAILABLE)
 
         booking.id = str(uuid.uuid4())
         booking.user_name = user.name
@@ -79,75 +62,47 @@ class BookingService:
         await self.booking_repo.create(booking)
 
     async def get_booking_by_id(self, booking_id: str) -> Booking:
-        if not booking_id:
-            raise InvalidInputError("Booking ID is required")
-
-        booking: Booking = await self.booking_repo.get_by_id(booking_id)
-        if not booking:
-            raise NotFoundError("Booking not found")
-
-        return booking
+        return await self.booking_repo.get_by_id(booking_id)
 
     async def cancel_booking(self, booking_id: str) -> None:
-        if not booking_id:
-            raise InvalidInputError("Booking ID is required")
-
         booking: Booking = await self.booking_repo.get_by_id(booking_id)
-        if not booking:
-            raise NotFoundError("Booking not found")
-
         await self.booking_repo.cancel(booking_id)
 
     async def get_all_bookings(self) -> List[Booking]:
         return await self.booking_repo.get_all()
 
     async def get_bookings_by_room_id(self, room_id: str) -> List[Booking]:
-        if not room_id:
-            raise InvalidInputError("Room ID is required")
-
         return await self.booking_repo.get_by_room_id(room_id)
 
     async def get_bookings_by_user_id(self, user_id: str) -> List[Booking]:
-        if not user_id:
-            raise InvalidInputError("User ID is required")
-
         return await self.booking_repo.get_by_user_id(user_id)
 
     async def get_bookings_with_details_by_room_id(
         self, room_id: str
     ) -> List[BookingWithDetails]:
-        if not room_id:
-            raise InvalidInputError("Room ID is required")
-
         bookings: List[Booking] = await self.booking_repo.get_by_room_id(room_id)
         room = await self.room_repo.get_by_id(room_id)
 
-        if not room:
-            raise NotFoundError("Room not found")
-
         detailed_bookings: List[BookingWithDetails] = []
         for booking in bookings:
-            try:
-                user: User = await self.user_repo.get_by_id(booking.user_id)
-                detailed_bookings.append(
-                    BookingWithDetails(
-                        id=booking.id,
-                        user_id=booking.user_id,
-                        user_name=user.name,
-                        room_id=booking.room_id,
-                        room_number=room.room_number,
-                        start_time=booking.start_time,
-                        end_time=booking.end_time,
-                        purpose=booking.purpose,
-                        status=booking.status,
-                        created_at=booking.created_at,
-                        updated_at=booking.updated_at,
-                        user_email=user.email,
-                        room_name=room.name,
-                    )
+            user: User = await self.user_repo.get_by_id(booking.user_id)
+            detailed_bookings.append(
+                BookingWithDetails(
+                    id=booking.id,
+                    user_id=booking.user_id,
+                    user_name=user.name,
+                    room_id=booking.room_id,
+                    room_number=room.room_number,
+                    start_time=booking.start_time,
+                    end_time=booking.end_time,
+                    purpose=booking.purpose,
+                    status=booking.status,
+                    created_at=booking.created_at,
+                    updated_at=booking.updated_at,
+                    user_email=user.email,
+                    room_name=room.name,
                 )
-            except Exception:
-                continue
+            )
 
         return detailed_bookings
 
@@ -157,14 +112,14 @@ class BookingService:
         return await self.booking_repo.get_by_date_range(start_date, end_date)
 
     async def get_room_schedule_by_date(
-        self, room_id: str, target_date: int
+        self, room_id: str, date_str: str
     ) -> RoomScheduleResponse:
-        if not room_id:
-            raise InvalidInputError("Room ID is required")
+        from datetime import datetime, timezone
+
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        target_date = int(date_obj.replace(tzinfo=timezone.utc).timestamp())
 
         room = await self.room_repo.get_by_id(room_id)
-        if not room:
-            raise NotFoundError("Room not found")
 
         bookings: List[Booking] = await self.booking_repo.get_by_room_id_and_date(
             room_id, target_date
@@ -172,13 +127,8 @@ class BookingService:
 
         schedule_slots: List[ScheduleSlot] = []
         for booking in bookings:
-            user_name: str = ""
-            try:
-                user: User = await self.user_repo.get_by_id(booking.user_id)
-                if user:
-                    user_name = user.name
-            except Exception:
-                pass
+            user: User = await self.user_repo.get_by_id(booking.user_id)
+            user_name: str = user.name
 
             schedule_slots.append(
                 ScheduleSlot(

@@ -1,9 +1,9 @@
 from typing import Dict
 from fastapi import APIRouter, Depends
-from app.models.pydantic_models import LoginUserRequest, LoginUserResponse, UserDTO
+from app.models.dto import LoginUserRequest, LoginUserResponse, UserDTO
 from app.services.auth_service import AuthService
 from app.dependencies.dependencies import get_auth_service, AuthServiceInstance
-from app.utils.errors import InvalidInputError, UnauthorizedError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 auth_router: APIRouter = APIRouter(tags=["Authentication"])

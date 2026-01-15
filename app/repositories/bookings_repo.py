@@ -4,7 +4,7 @@ import time
 import asyncio
 from boto3.dynamodb.conditions import Key, Attr
 from app.models.models import Booking
-from app.utils.errors import NotFoundError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class BookingRepository:
@@ -40,7 +40,7 @@ class BookingRepository:
         )
 
         if "Item" not in response:
-            raise NotFoundError("Booking not found")
+            raise ApplicationError(ErrorCode.BOOKING_NOT_FOUND)
 
         item = response["Item"]
         return Booking(
@@ -99,7 +99,7 @@ class BookingRepository:
                 ConditionExpression="attribute_exists(PK) AND attribute_exists(SK)",
             )
         except self.dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
-            raise NotFoundError("Booking not found")
+            raise ApplicationError(ErrorCode.BOOKING_NOT_FOUND)
 
     async def delete_by_user_id(self, user_id: str) -> int:
         response = await asyncio.to_thread(
@@ -154,9 +154,6 @@ class BookingRepository:
         return self._unmarshal_bookings(response.get("Items", []))
 
     def _unmarshal_bookings(self, items: List[dict]) -> List[Booking]:
-        if not items:
-            return []
-
         bookings = []
         for item in items:
             bookings.append(

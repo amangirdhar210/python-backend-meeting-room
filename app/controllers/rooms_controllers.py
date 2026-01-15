@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, Request
 from typing import Optional, List
 from app.models.models import Room
-from app.models.pydantic_models import (
+from app.models.dto import (
     AddRoomRequest,
     UpdateRoomRequest,
     RoomDTO,
@@ -10,7 +10,7 @@ from app.models.pydantic_models import (
 from app.services.rooms_service import RoomService
 from app.dependencies.dependencies import get_room_service, RoomServiceInstance
 from app.middleware.auth_middleware import set_current_user, require_admin_state
-from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 rooms_router: APIRouter = APIRouter(

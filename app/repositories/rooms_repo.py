@@ -4,7 +4,7 @@ import time
 import asyncio
 from boto3.dynamodb.conditions import Key, Attr
 from app.models.models import Room
-from app.utils.errors import NotFoundError, InvalidInputError, ConflictError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class RoomRepository:
@@ -14,9 +14,6 @@ class RoomRepository:
         self.table: Any = dynamodb_client.Table(table_name)
 
     async def create(self, room: Room) -> None:
-        if not room:
-            raise InvalidInputError("Room is required")
-
         item = {
             "PK": "ROOM",
             "SK": f"ROOM#{room.id}",
@@ -42,7 +39,7 @@ class RoomRepository:
                 ConditionExpression="attribute_not_exists(PK) AND attribute_not_exists(SK)",
             )
         except self.dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
-            raise ConflictError("Room already exists")
+            raise ApplicationError(ErrorCode.ROOM_ALREADY_EXISTS)
 
     async def get_all(self) -> List[Room]:
         response = await asyncio.to_thread(
@@ -73,15 +70,12 @@ class RoomRepository:
         return rooms
 
     async def get_by_id(self, room_id: str) -> Optional[Room]:
-        if not room_id:
-            raise InvalidInputError("Room ID is required")
-
         response = await asyncio.to_thread(
             self.table.get_item, Key={"PK": "ROOM", "SK": f"ROOM#{room_id}"}
         )
 
         if "Item" not in response:
-            raise NotFoundError("Room not found")
+            raise ApplicationError(ErrorCode.ROOM_NOT_FOUND)
 
         item = response["Item"]
         return Room(
@@ -99,9 +93,6 @@ class RoomRepository:
         )
 
     async def update(self, room: Room) -> None:
-        if not room:
-            raise InvalidInputError("Room is required")
-
         item = {
             "PK": "ROOM",
             "SK": f"ROOM#{room.id}",
@@ -127,12 +118,9 @@ class RoomRepository:
                 ConditionExpression="attribute_exists(PK) AND attribute_exists(SK)",
             )
         except self.dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
-            raise NotFoundError("Room not found")
+            raise ApplicationError(ErrorCode.ROOM_NOT_FOUND)
 
     async def delete_by_id(self, room_id: str) -> None:
-        if not room_id:
-            raise InvalidInputError("Room ID is required")
-
         try:
             await asyncio.to_thread(
                 self.table.delete_item,
@@ -140,12 +128,9 @@ class RoomRepository:
                 ConditionExpression="attribute_exists(PK) AND attribute_exists(SK)",
             )
         except self.dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
-            raise NotFoundError("Room not found")
+            raise ApplicationError(ErrorCode.ROOM_NOT_FOUND)
 
     async def update_availability(self, room_id: str, status: str) -> None:
-        if not room_id:
-            raise InvalidInputError("Room ID is required")
-
         try:
             await asyncio.to_thread(
                 self.table.update_item,
@@ -159,18 +144,15 @@ class RoomRepository:
                 ConditionExpression="attribute_exists(PK) AND attribute_exists(SK)",
             )
         except self.dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
-            raise NotFoundError("Room not found")
+            raise ApplicationError(ErrorCode.ROOM_NOT_FOUND)
 
     async def check_room_number_exists_on_floor(
         self, room_number: int, floor: int
     ) -> bool:
-        try:
-            response = await asyncio.to_thread(
-                self.table.query,
-                KeyConditionExpression=Key("PK").eq("ROOM"),
-                FilterExpression=Attr("RoomNumber").eq(room_number)
-                & Attr("Floor").eq(floor),
-            )
-            return len(response.get("Items", [])) > 0
-        except Exception:
-            return False
+        response = await asyncio.to_thread(
+            self.table.query,
+            KeyConditionExpression=Key("PK").eq("ROOM"),
+            FilterExpression=Attr("RoomNumber").eq(room_number)
+            & Attr("Floor").eq(floor),
+        )
+        return len(response.get("Items", [])) > 0

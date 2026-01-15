@@ -3,7 +3,7 @@ import boto3
 import asyncio
 from boto3.dynamodb.conditions import Key
 from app.models.models import User
-from app.utils.errors import NotFoundError, InvalidInputError
+from app.utils.errors import ApplicationError, ErrorCode
 import time
 
 
@@ -13,30 +13,22 @@ class UserRepository:
         self.table: Any = dynamodb_client.Table(table_name)
 
     async def find_user_id_by_email(self, email: str) -> str:
-        if not email:
-            raise InvalidInputError("Email is required")
-
         response = await asyncio.to_thread(
             self.table.query,
             KeyConditionExpression=Key("PK").eq("USER") & Key("SK").eq(email),
         )
 
         if not response.get("Items"):
-            raise NotFoundError("User not found")
+            raise ApplicationError(ErrorCode.USER_NOT_FOUND)
 
         user_id = response["Items"][0].get("ID")
         return str(user_id) if user_id else ""
 
     async def find_by_email(self, email: str) -> User:
         user_id: str = await self.find_user_id_by_email(email)
-        if not user_id:
-            raise NotFoundError("User not found")
         return await self.get_by_id(user_id)
 
     async def get_by_id(self, user_id: str) -> User:
-        if not user_id:
-            raise InvalidInputError("User ID is required")
-
         response = await asyncio.to_thread(
             self.table.query,
             KeyConditionExpression=Key("PK").eq("USER")
@@ -44,7 +36,7 @@ class UserRepository:
         )
 
         if not response.get("Items"):
-            raise NotFoundError("User not found")
+            raise ApplicationError(ErrorCode.USER_NOT_FOUND)
 
         item = response["Items"][0]
         return User(
@@ -58,9 +50,6 @@ class UserRepository:
         )
 
     async def create(self, user: User) -> None:
-        if not user:
-            raise InvalidInputError("User is required")
-
         await asyncio.to_thread(
             self.table.meta.client.transact_write_items,
             TransactItems=[
@@ -116,12 +105,8 @@ class UserRepository:
         return users
 
     async def update(self, user: User, old_email: Optional[str] = None) -> None:
-        if not user:
-            raise InvalidInputError("User is required")
-
         transact_items = []
 
-        # If email changed, delete old email lookup and create new one
         if old_email and old_email != user.email:
             transact_items.append(
                 {
@@ -140,7 +125,6 @@ class UserRepository:
                 }
             )
 
-        # Update main user record
         transact_items.append(
             {
                 "Put": {
@@ -166,12 +150,7 @@ class UserRepository:
         )
 
     async def delete_by_id(self, user_id: str) -> None:
-        if not user_id:
-            raise InvalidInputError("User ID is required")
-
         user = await self.get_by_id(user_id)
-        if not user:
-            raise NotFoundError("User not found")
 
         await asyncio.to_thread(
             self.table.meta.client.transact_write_items,
