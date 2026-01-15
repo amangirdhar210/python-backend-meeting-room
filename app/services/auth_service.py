@@ -14,8 +14,9 @@ class AuthService:
         email = email.strip()
         password = password.strip()
 
-        user: User = await self.user_repo.find_by_email(email)
-        if not user:
+        try:
+            user: User = await self.user_repo.find_by_email(email)
+        except ApplicationError:
             raise ApplicationError(ErrorCode.INVALID_CREDENTIALS)
 
         if not password_utils.verify_password(user.password, password):

@@ -30,7 +30,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Register exception handlers before middleware
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(ApplicationError, application_error_handler)
 app.add_exception_handler(Exception, general_exception_handler)
