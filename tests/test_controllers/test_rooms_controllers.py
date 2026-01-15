@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock
 from app.models.models import Room
-from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class TestRoomsControllers:
@@ -18,18 +18,14 @@ class TestRoomsControllers:
         from app.dependencies.dependencies import get_room_service
         from app.middleware.auth_middleware import set_current_user, require_admin_state
         from app.utils.exception_handlers import (
-            invalid_input_exception_handler,
-            not_found_exception_handler,
-            conflict_exception_handler,
+            application_error_handler,
             general_exception_handler,
         )
 
         app = FastAPI()
         app.include_router(rooms_router)
 
-        app.add_exception_handler(InvalidInputError, invalid_input_exception_handler)
-        app.add_exception_handler(NotFoundError, not_found_exception_handler)
-        app.add_exception_handler(ConflictError, conflict_exception_handler)
+        app.add_exception_handler(ApplicationError, application_error_handler)
         app.add_exception_handler(Exception, general_exception_handler)
 
         async def mock_set_current_user(request: Request):
@@ -87,7 +83,7 @@ class TestRoomsControllers:
 
     def test_add_room_conflict(self, client, mock_room_service):
         mock_room_service.add_room = AsyncMock(
-            side_effect=ConflictError("Room number already exists on this floor")
+            side_effect=ApplicationError(ErrorCode.ROOM_ALREADY_EXISTS)
         )
 
         response = client.post(
@@ -224,13 +220,13 @@ class TestRoomsControllers:
 
     def test_get_room_by_id_not_found(self, client, mock_room_service):
         mock_room_service.get_room_by_id = AsyncMock(
-            side_effect=NotFoundError("Room not found")
+            side_effect=ApplicationError(ErrorCode.ROOM_NOT_FOUND)
         )
 
         response = client.get("/api/rooms/nonexistent")
 
         assert response.status_code == 404
-        assert response.json()["detail"] == "Room not found"
+        assert response.json()["message"] == "Room not found"
 
     def test_update_room_success(self, client, mock_room_service):
         mock_room_service.update_room = AsyncMock()
@@ -250,7 +246,7 @@ class TestRoomsControllers:
 
     def test_update_room_not_found(self, client, mock_room_service):
         mock_room_service.update_room = AsyncMock(
-            side_effect=NotFoundError("Room not found")
+            side_effect=ApplicationError(ErrorCode.ROOM_NOT_FOUND)
         )
 
         response = client.put(
@@ -284,7 +280,7 @@ class TestRoomsControllers:
 
     def test_delete_room_not_found(self, client, mock_room_service):
         mock_room_service.delete_room_by_id = AsyncMock(
-            side_effect=NotFoundError("Room not found")
+            side_effect=ApplicationError(ErrorCode.ROOM_NOT_FOUND)
         )
 
         response = client.delete("/api/rooms/nonexistent")

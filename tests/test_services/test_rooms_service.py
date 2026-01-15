@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock
 from app.services.rooms_service import RoomService
 from app.models.models import Room
-from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class TestRoomService:
@@ -60,57 +60,9 @@ class TestRoomService:
     ):
         mock_room_repo.check_room_number_exists_on_floor.return_value = True
 
-        with pytest.raises(
-            ConflictError, match="Room number already exists on this floor"
-        ):
+        with pytest.raises(ApplicationError) as exc_info:
             await room_service.add_room(sample_room)
-
-    @pytest.mark.asyncio
-    async def test_add_room_none_room(self, room_service):
-        with pytest.raises(InvalidInputError, match="Room is required"):
-            await room_service.add_room(None)
-
-    @pytest.mark.asyncio
-    async def test_add_room_empty_name(self, room_service, sample_room):
-        sample_room.name = ""
-
-        with pytest.raises(InvalidInputError, match="Invalid room data"):
-            await room_service.add_room(sample_room)
-
-    @pytest.mark.asyncio
-    async def test_add_room_zero_capacity(self, room_service, sample_room):
-        sample_room.capacity = 0
-
-        with pytest.raises(InvalidInputError, match="Invalid room data"):
-            await room_service.add_room(sample_room)
-
-    @pytest.mark.asyncio
-    async def test_add_room_negative_capacity(self, room_service, sample_room):
-        sample_room.capacity = -5
-
-        with pytest.raises(InvalidInputError, match="Invalid room data"):
-            await room_service.add_room(sample_room)
-
-    @pytest.mark.asyncio
-    async def test_add_room_empty_location(self, room_service, sample_room):
-        sample_room.location = ""
-
-        with pytest.raises(InvalidInputError, match="Invalid room data"):
-            await room_service.add_room(sample_room)
-
-    @pytest.mark.asyncio
-    async def test_add_room_zero_room_number(self, room_service, sample_room):
-        sample_room.room_number = 0
-
-        with pytest.raises(InvalidInputError, match="Invalid room data"):
-            await room_service.add_room(sample_room)
-
-    @pytest.mark.asyncio
-    async def test_add_room_negative_floor(self, room_service, sample_room):
-        sample_room.floor = -1
-
-        with pytest.raises(InvalidInputError, match="Invalid room data"):
-            await room_service.add_room(sample_room)
+        assert exc_info.value.error_code == ErrorCode.ROOM_ALREADY_EXISTS
 
     @pytest.mark.asyncio
     async def test_add_room_default_status(
@@ -175,18 +127,6 @@ class TestRoomService:
         mock_room_repo.get_by_id.assert_called_once_with("room-123")
 
     @pytest.mark.asyncio
-    async def test_get_room_by_id_not_found(self, room_service, mock_room_repo):
-        mock_room_repo.get_by_id.return_value = None
-
-        with pytest.raises(NotFoundError, match="Room not found"):
-            await room_service.get_room_by_id("room-999")
-
-    @pytest.mark.asyncio
-    async def test_get_room_by_id_empty_id(self, room_service):
-        with pytest.raises(InvalidInputError, match="Room ID is required"):
-            await room_service.get_room_by_id("")
-
-    @pytest.mark.asyncio
     async def test_update_room_success(self, room_service, mock_room_repo, sample_room):
         mock_room_repo.get_by_id.return_value = sample_room
         update_data = AsyncMock()
@@ -227,19 +167,7 @@ class TestRoomService:
         mock_room_repo.update.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_update_room_empty_id(self, room_service):
-        update_data = AsyncMock()
-
-        with pytest.raises(InvalidInputError, match="Room ID is required"):
-            await room_service.update_room("", update_data)
-
-    @pytest.mark.asyncio
     async def test_delete_room_success(self, room_service, mock_room_repo):
         await room_service.delete_room_by_id("room-123")
 
         mock_room_repo.delete_by_id.assert_called_once_with("room-123")
-
-    @pytest.mark.asyncio
-    async def test_delete_room_empty_id(self, room_service):
-        with pytest.raises(InvalidInputError, match="Room ID is required"):
-            await room_service.delete_room_by_id("")

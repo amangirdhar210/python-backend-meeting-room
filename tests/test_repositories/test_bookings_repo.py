@@ -3,7 +3,7 @@ import asyncio
 from unittest.mock import MagicMock
 from app.repositories.bookings_repo import BookingRepository
 from app.models.models import Booking
-from app.utils.errors import NotFoundError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class TestBookingRepository:
@@ -83,8 +83,9 @@ class TestBookingRepository:
     def test_get_by_id_not_found(self, booking_repo, mock_table):
         mock_table.get_item.return_value = {}
 
-        with pytest.raises(NotFoundError, match="Booking not found"):
+        with pytest.raises(ApplicationError) as exc_info:
             asyncio.run(booking_repo.get_by_id("nonexistent-booking"))
+        assert exc_info.value.error_code == ErrorCode.BOOKING_NOT_FOUND
 
     def test_get_all_bookings_success(self, booking_repo, mock_table):
         mock_table.query.return_value = {

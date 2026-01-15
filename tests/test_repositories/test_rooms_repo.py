@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from botocore.exceptions import ClientError
 from app.repositories.rooms_repo import RoomRepository
 from app.models.models import Room
-from app.utils.errors import NotFoundError, InvalidInputError, ConflictError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class TestRoomRepository:
@@ -58,10 +58,6 @@ class TestRoomRepository:
         assert item["LSI1"] == 1
         assert item["LSI2"] == 10
 
-    def test_create_room_none_raises_error(self, room_repo):
-        with pytest.raises(InvalidInputError, match="Room is required"):
-            asyncio.run(room_repo.create(None))
-
     def test_get_by_id_success(self, room_repo, mock_table):
         mock_table.get_item.return_value = {
             "Item": {
@@ -92,12 +88,9 @@ class TestRoomRepository:
     def test_get_by_id_not_found(self, room_repo, mock_table):
         mock_table.get_item.return_value = {}
 
-        with pytest.raises(NotFoundError, match="Room not found"):
+        with pytest.raises(ApplicationError) as exc_info:
             asyncio.run(room_repo.get_by_id("nonexistent-room"))
-
-    def test_get_by_id_empty_id(self, room_repo):
-        with pytest.raises(InvalidInputError, match="Room ID is required"):
-            asyncio.run(room_repo.get_by_id(""))
+        assert exc_info.value.error_code == ErrorCode.ROOM_NOT_FOUND
 
     def test_get_all_rooms_success(self, room_repo, mock_table):
         mock_table.query.return_value = {

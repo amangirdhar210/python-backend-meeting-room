@@ -2,12 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock
 from app.models.models import Booking, RoomScheduleResponse, ScheduleSlot
-from app.utils.errors import (
-    InvalidInputError,
-    NotFoundError,
-    RoomUnavailableError,
-    TimeRangeInvalidError,
-)
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class TestBookingsControllers:
@@ -19,28 +14,21 @@ class TestBookingsControllers:
     @pytest.fixture
     def client(self, mock_booking_service):
         from fastapi import FastAPI, Request
+        from fastapi.exceptions import RequestValidationError
         from app.controllers.bookings_controllers import bookings_router
         from app.dependencies.dependencies import get_booking_service
         from app.middleware.auth_middleware import set_current_user, require_admin_state
         from app.utils.exception_handlers import (
-            invalid_input_exception_handler,
-            not_found_exception_handler,
-            room_unavailable_exception_handler,
-            time_range_invalid_exception_handler,
+            application_error_handler,
+            validation_exception_handler,
             general_exception_handler,
         )
 
         app = FastAPI()
         app.include_router(bookings_router)
 
-        app.add_exception_handler(InvalidInputError, invalid_input_exception_handler)
-        app.add_exception_handler(NotFoundError, not_found_exception_handler)
-        app.add_exception_handler(
-            RoomUnavailableError, room_unavailable_exception_handler
-        )
-        app.add_exception_handler(
-            TimeRangeInvalidError, time_range_invalid_exception_handler
-        )
+        app.add_exception_handler(RequestValidationError, validation_exception_handler)
+        app.add_exception_handler(ApplicationError, application_error_handler)
         app.add_exception_handler(Exception, general_exception_handler)
 
         async def mock_set_current_user(request: Request):
@@ -94,7 +82,7 @@ class TestBookingsControllers:
 
     def test_create_booking_room_unavailable(self, client, mock_booking_service):
         mock_booking_service.create_booking = AsyncMock(
-            side_effect=RoomUnavailableError("Room is already booked for this time")
+            side_effect=ApplicationError(ErrorCode.ROOM_UNAVAILABLE)
         )
 
         response = client.post(
@@ -208,7 +196,7 @@ class TestBookingsControllers:
 
     def test_get_booking_by_id_not_found(self, client, mock_booking_service):
         mock_booking_service.get_booking_by_id = AsyncMock(
-            side_effect=NotFoundError("Booking not found")
+            side_effect=ApplicationError(ErrorCode.BOOKING_NOT_FOUND)
         )
 
         response = client.get("/api/bookings/nonexistent")
@@ -226,7 +214,7 @@ class TestBookingsControllers:
 
     def test_cancel_booking_not_found(self, client, mock_booking_service):
         mock_booking_service.cancel_booking = AsyncMock(
-            side_effect=NotFoundError("Booking not found")
+            side_effect=ApplicationError(ErrorCode.BOOKING_NOT_FOUND)
         )
 
         response = client.delete("/api/bookings/nonexistent")
@@ -329,7 +317,9 @@ class TestBookingsControllers:
     def test_get_room_schedule_invalid_date_format(self, client, mock_booking_service):
         response = client.get("/api/rooms/room-789/schedule?date=invalid-date")
 
-        assert response.status_code == 400
+        assert response.status_code == 422
+        assert "error_code" in response.json()
+        assert response.json()["error_code"] == 4220
 
     def test_get_room_schedule_missing_date(self, client, mock_booking_service):
         response = client.get("/api/rooms/room-789/schedule")
@@ -338,7 +328,7 @@ class TestBookingsControllers:
 
     def test_create_booking_room_not_found(self, client, mock_booking_service):
         mock_booking_service.create_booking = AsyncMock(
-            side_effect=NotFoundError("Room not found")
+            side_effect=ApplicationError(ErrorCode.ROOM_NOT_FOUND)
         )
 
         response = client.post(

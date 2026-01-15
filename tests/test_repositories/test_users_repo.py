@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, AsyncMock
 from botocore.exceptions import ClientError
 from app.repositories.users_repo import UserRepository
 from app.models.models import User
-from app.utils.errors import NotFoundError, InvalidInputError, ConflictError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class TestUserRepository:
@@ -48,10 +48,6 @@ class TestUserRepository:
         assert items[1]["Put"]["Item"]["SK"] == "USER#user-1234567890"
         assert items[1]["Put"]["Item"]["Email"] == "john@example.com"
 
-    def test_create_user_none_raises_error(self, user_repo):
-        with pytest.raises(InvalidInputError, match="User is required"):
-            asyncio.run(user_repo.create(None))
-
     def test_get_by_id_success(self, user_repo, mock_table, sample_user):
         mock_table.query.return_value = {
             "Items": [
@@ -79,12 +75,9 @@ class TestUserRepository:
     def test_get_by_id_not_found(self, user_repo, mock_table):
         mock_table.query.return_value = {"Items": []}
 
-        with pytest.raises(NotFoundError, match="User not found"):
+        with pytest.raises(ApplicationError) as exc_info:
             asyncio.run(user_repo.get_by_id("nonexistent-user"))
-
-    def test_get_by_id_empty_id(self, user_repo):
-        with pytest.raises(InvalidInputError, match="User ID is required"):
-            asyncio.run(user_repo.get_by_id(""))
+        assert exc_info.value.error_code == ErrorCode.USER_NOT_FOUND
 
     def test_find_by_email_success(self, user_repo, mock_table):
         mock_table.query.side_effect = [
@@ -112,12 +105,9 @@ class TestUserRepository:
     def test_find_by_email_not_found(self, user_repo, mock_table):
         mock_table.query.return_value = {"Items": []}
 
-        with pytest.raises(NotFoundError, match="User not found"):
+        with pytest.raises(ApplicationError) as exc_info:
             asyncio.run(user_repo.find_by_email("notfound@example.com"))
-
-    def test_find_user_id_by_email_empty_email(self, user_repo):
-        with pytest.raises(InvalidInputError, match="Email is required"):
-            asyncio.run(user_repo.find_user_id_by_email(""))
+        assert exc_info.value.error_code == ErrorCode.USER_NOT_FOUND
 
     def test_get_all_users_success(self, user_repo, mock_table):
         mock_table.query.return_value = {

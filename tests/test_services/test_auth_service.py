@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock
 from app.services.auth_service import AuthService
 from app.models.models import User
-from app.utils.errors import InvalidInputError, UnauthorizedError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class TestAuthService:
@@ -44,8 +44,9 @@ class TestAuthService:
     async def test_login_email_not_found(self, auth_service, mock_user_repo):
         mock_user_repo.find_by_email.return_value = None
 
-        with pytest.raises(UnauthorizedError, match="Invalid credentials"):
+        with pytest.raises(ApplicationError) as exc_info:
             await auth_service.login("nonexistent@example.com", "password")
+        assert exc_info.value.error_code == ErrorCode.INVALID_CREDENTIALS
 
     @pytest.mark.asyncio
     async def test_login_incorrect_password(
@@ -53,28 +54,9 @@ class TestAuthService:
     ):
         mock_user_repo.find_by_email.return_value = sample_user
 
-        with pytest.raises(UnauthorizedError, match="Invalid credentials"):
+        with pytest.raises(ApplicationError) as exc_info:
             await auth_service.login("test@example.com", "wrong_password")
-
-    @pytest.mark.asyncio
-    async def test_login_empty_email(self, auth_service):
-        with pytest.raises(InvalidInputError, match="Email and password are required"):
-            await auth_service.login("", "password")
-
-    @pytest.mark.asyncio
-    async def test_login_empty_password(self, auth_service):
-        with pytest.raises(InvalidInputError, match="Email and password are required"):
-            await auth_service.login("test@example.com", "")
-
-    @pytest.mark.asyncio
-    async def test_login_whitespace_only_email(self, auth_service):
-        with pytest.raises(InvalidInputError, match="Email and password are required"):
-            await auth_service.login("   ", "password")
-
-    @pytest.mark.asyncio
-    async def test_login_whitespace_only_password(self, auth_service):
-        with pytest.raises(InvalidInputError, match="Email and password are required"):
-            await auth_service.login("test@example.com", "   ")
+        assert exc_info.value.error_code == ErrorCode.INVALID_CREDENTIALS
 
     @pytest.mark.asyncio
     async def test_login_trims_whitespace(

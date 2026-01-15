@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock
 from app.models.models import User
-from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class TestUsersControllers:
@@ -18,18 +18,14 @@ class TestUsersControllers:
         from app.dependencies.dependencies import get_user_service
         from app.middleware.auth_middleware import set_current_user, require_admin_state
         from app.utils.exception_handlers import (
-            invalid_input_exception_handler,
-            not_found_exception_handler,
-            conflict_exception_handler,
+            application_error_handler,
             general_exception_handler,
         )
 
         app = FastAPI()
         app.include_router(users_router)
 
-        app.add_exception_handler(InvalidInputError, invalid_input_exception_handler)
-        app.add_exception_handler(NotFoundError, not_found_exception_handler)
-        app.add_exception_handler(ConflictError, conflict_exception_handler)
+        app.add_exception_handler(ApplicationError, application_error_handler)
         app.add_exception_handler(Exception, general_exception_handler)
 
         async def mock_set_current_user(request: Request):
@@ -79,7 +75,7 @@ class TestUsersControllers:
 
     def test_register_user_conflict(self, client, mock_user_service):
         mock_user_service.register = AsyncMock(
-            side_effect=ConflictError("Email already exists")
+            side_effect=ApplicationError(ErrorCode.USER_ALREADY_EXISTS)
         )
 
         response = client.post(
@@ -93,7 +89,7 @@ class TestUsersControllers:
         )
 
         assert response.status_code == 409
-        assert response.json()["detail"] == "Email already exists"
+        assert response.json()["message"] == "User with this email already exists"
 
     @pytest.mark.parametrize(
         "payload,description",
@@ -192,13 +188,13 @@ class TestUsersControllers:
 
     def test_get_user_by_id_not_found(self, client, mock_user_service):
         mock_user_service.get_user_by_id = AsyncMock(
-            side_effect=NotFoundError("User not found")
+            side_effect=ApplicationError(ErrorCode.USER_NOT_FOUND)
         )
 
         response = client.get("/api/users/nonexistent")
 
         assert response.status_code == 404
-        assert response.json()["detail"] == "User not found"
+        assert response.json()["message"] == "User not found"
 
     def test_update_user_success(self, client, mock_user_service):
         mock_user_service.update_user = AsyncMock()
@@ -214,7 +210,7 @@ class TestUsersControllers:
 
     def test_update_user_not_found(self, client, mock_user_service):
         mock_user_service.update_user = AsyncMock(
-            side_effect=NotFoundError("User not found")
+            side_effect=ApplicationError(ErrorCode.USER_NOT_FOUND)
         )
 
         response = client.put(
@@ -226,7 +222,7 @@ class TestUsersControllers:
 
     def test_update_user_conflict(self, client, mock_user_service):
         mock_user_service.update_user = AsyncMock(
-            side_effect=ConflictError("Email already in use")
+            side_effect=ApplicationError(ErrorCode.USER_ALREADY_EXISTS)
         )
 
         response = client.put(
@@ -235,11 +231,13 @@ class TestUsersControllers:
         )
 
         assert response.status_code == 409
-        assert response.json()["detail"] == "Email already in use"
+        assert response.json()["message"] == "User with this email already exists"
 
     def test_update_user_cannot_edit_yourself(self, client, mock_user_service):
         mock_user_service.update_user = AsyncMock(
-            side_effect=InvalidInputError("You cannot edit your own account")
+            side_effect=ApplicationError(
+                ErrorCode.INVALID_INPUT, message="You cannot edit your own account"
+            )
         )
 
         response = client.put(
@@ -248,11 +246,13 @@ class TestUsersControllers:
         )
 
         assert response.status_code == 400
-        assert response.json()["detail"] == "You cannot edit your own account"
+        assert response.json()["message"] == "You cannot edit your own account"
 
     def test_update_user_superadmin_protection(self, client, mock_user_service):
         mock_user_service.update_user = AsyncMock(
-            side_effect=InvalidInputError("Superadmin accounts cannot be updated")
+            side_effect=ApplicationError(
+                ErrorCode.INVALID_INPUT, message="Superadmin accounts cannot be updated"
+            )
         )
 
         response = client.put(
@@ -261,7 +261,7 @@ class TestUsersControllers:
         )
 
         assert response.status_code == 400
-        assert response.json()["detail"] == "Superadmin accounts cannot be updated"
+        assert response.json()["message"] == "Superadmin accounts cannot be updated"
 
     @pytest.mark.parametrize(
         "payload,description",
@@ -286,7 +286,7 @@ class TestUsersControllers:
 
     def test_delete_user_not_found(self, client, mock_user_service):
         mock_user_service.delete_user_by_id = AsyncMock(
-            side_effect=NotFoundError("User not found")
+            side_effect=ApplicationError(ErrorCode.USER_NOT_FOUND)
         )
 
         response = client.delete("/api/users/nonexistent")
@@ -295,10 +295,12 @@ class TestUsersControllers:
 
     def test_delete_user_cannot_delete_yourself(self, client, mock_user_service):
         mock_user_service.delete_user_by_id = AsyncMock(
-            side_effect=InvalidInputError("You cannot delete your own account")
+            side_effect=ApplicationError(
+                ErrorCode.INVALID_INPUT, message="You cannot delete your own account"
+            )
         )
 
         response = client.delete("/api/users/admin-123")
 
         assert response.status_code == 400
-        assert response.json()["detail"] == "You cannot delete your own account"
+        assert response.json()["message"] == "You cannot delete your own account"

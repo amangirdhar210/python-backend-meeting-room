@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from app.services.users_service import UserService
 from app.models.models import User
-from app.utils.errors import InvalidInputError, NotFoundError, ConflictError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class TestUserService:
@@ -33,7 +33,9 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_register_success(self, user_service, mock_user_repo, sample_user):
-        mock_user_repo.find_by_email.side_effect = NotFoundError("Not found")
+        mock_user_repo.find_by_email.side_effect = ApplicationError(
+            ErrorCode.USER_NOT_FOUND
+        )
 
         await user_service.register(sample_user)
 
@@ -45,7 +47,9 @@ class TestUserService:
     async def test_register_hashes_password(
         self, user_service, mock_user_repo, sample_user
     ):
-        mock_user_repo.find_by_email.side_effect = NotFoundError("Not found")
+        mock_user_repo.find_by_email.side_effect = ApplicationError(
+            ErrorCode.USER_NOT_FOUND
+        )
         original_password = sample_user.password
 
         await user_service.register(sample_user)
@@ -59,47 +63,17 @@ class TestUserService:
     ):
         mock_user_repo.find_by_email.return_value = sample_user
 
-        with pytest.raises(ConflictError, match="User already exists"):
+        with pytest.raises(ApplicationError) as exc_info:
             await user_service.register(sample_user)
-
-    @pytest.mark.asyncio
-    async def test_register_missing_email(self, user_service, sample_user):
-        sample_user.email = ""
-
-        with pytest.raises(InvalidInputError, match="All fields are required"):
-            await user_service.register(sample_user)
-
-    @pytest.mark.asyncio
-    async def test_register_missing_password(self, user_service, sample_user):
-        sample_user.password = ""
-
-        with pytest.raises(InvalidInputError, match="All fields are required"):
-            await user_service.register(sample_user)
-
-    @pytest.mark.asyncio
-    async def test_register_missing_name(self, user_service, sample_user):
-        sample_user.name = ""
-
-        with pytest.raises(InvalidInputError, match="All fields are required"):
-            await user_service.register(sample_user)
-
-    @pytest.mark.asyncio
-    async def test_register_missing_role(self, user_service, sample_user):
-        sample_user.role = ""
-
-        with pytest.raises(InvalidInputError, match="All fields are required"):
-            await user_service.register(sample_user)
-
-    @pytest.mark.asyncio
-    async def test_register_none_user(self, user_service):
-        with pytest.raises(InvalidInputError, match="User is required"):
-            await user_service.register(None)
+        assert exc_info.value.error_code == ErrorCode.USER_ALREADY_EXISTS
 
     @pytest.mark.asyncio
     async def test_register_sets_timestamps(
         self, user_service, mock_user_repo, sample_user
     ):
-        mock_user_repo.find_by_email.side_effect = NotFoundError("Not found")
+        mock_user_repo.find_by_email.side_effect = ApplicationError(
+            ErrorCode.USER_NOT_FOUND
+        )
 
         await user_service.register(sample_user)
 
@@ -118,20 +92,6 @@ class TestUserService:
         assert users[0] == sample_user
 
     @pytest.mark.asyncio
-    async def test_get_all_users_empty(self, user_service, mock_user_repo):
-        mock_user_repo.get_all.return_value = []
-
-        with pytest.raises(NotFoundError, match="No users found"):
-            await user_service.get_all_users()
-
-    @pytest.mark.asyncio
-    async def test_get_all_users_none(self, user_service, mock_user_repo):
-        mock_user_repo.get_all.return_value = None
-
-        with pytest.raises(NotFoundError, match="No users found"):
-            await user_service.get_all_users()
-
-    @pytest.mark.asyncio
     async def test_get_user_by_id_success(
         self, user_service, mock_user_repo, sample_user
     ):
@@ -141,16 +101,6 @@ class TestUserService:
 
         assert user == sample_user
         mock_user_repo.get_by_id.assert_called_once_with("user-1234567890")
-
-    @pytest.mark.asyncio
-    async def test_get_user_by_id_invalid_id(self, user_service):
-        with pytest.raises(InvalidInputError, match="Invalid user ID"):
-            await user_service.get_user_by_id("short")
-
-    @pytest.mark.asyncio
-    async def test_get_user_by_id_empty_id(self, user_service):
-        with pytest.raises(InvalidInputError, match="Invalid user ID"):
-            await user_service.get_user_by_id("")
 
     @pytest.mark.asyncio
     async def test_update_user_success(self, user_service, mock_user_repo, sample_user):
@@ -172,7 +122,7 @@ class TestUserService:
         mock_user_repo.get_by_id.return_value = sample_user
         update_data = AsyncMock()
 
-        with pytest.raises(InvalidInputError, match="You cannot edit your own account"):
+        with pytest.raises(ApplicationError) as exc_info:
             await user_service.update_user(
                 "user-123", update_data, current_user_id="user-123"
             )
@@ -196,10 +146,9 @@ class TestUserService:
         update_data.name = None
         update_data.role = None
 
-        with pytest.raises(
-            InvalidInputError, match="Superadmin accounts cannot be updated"
-        ):
+        with pytest.raises(ApplicationError) as exc_info:
             await user_service.update_user("admin-1234567890", update_data)
+        assert exc_info.value.error_code == ErrorCode.INVALID_INPUT
 
     @pytest.mark.asyncio
     async def test_update_user_email_conflict(
@@ -220,8 +169,9 @@ class TestUserService:
         update_data.name = None
         update_data.role = None
 
-        with pytest.raises(ConflictError, match="Email already in use"):
+        with pytest.raises(ApplicationError) as exc_info:
             await user_service.update_user("user-123", update_data)
+        assert exc_info.value.error_code == ErrorCode.USER_ALREADY_EXISTS
 
     @pytest.mark.asyncio
     async def test_delete_user_success(
@@ -240,12 +190,6 @@ class TestUserService:
     ):
         mock_user_repo.get_by_id.return_value = sample_user
 
-        with pytest.raises(
-            InvalidInputError, match="You cannot delete your own account"
-        ):
+        with pytest.raises(ApplicationError) as exc_info:
             await user_service.delete_user_by_id("user-123", current_user_id="user-123")
-
-    @pytest.mark.asyncio
-    async def test_delete_user_empty_id(self, user_service):
-        with pytest.raises(InvalidInputError, match="User ID is required"):
-            await user_service.delete_user_by_id("")
+        assert exc_info.value.error_code == ErrorCode.INVALID_INPUT

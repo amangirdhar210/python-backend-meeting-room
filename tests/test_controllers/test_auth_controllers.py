@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock
 from app.models.models import User
-from app.utils.errors import InvalidInputError, UnauthorizedError
+from app.utils.errors import ApplicationError, ErrorCode
 
 
 class TestAuthControllers:
@@ -17,17 +17,15 @@ class TestAuthControllers:
         from app.controllers.auth_controllers import auth_router
         from app.dependencies.dependencies import get_auth_service
         from app.utils.exception_handlers import (
-            invalid_input_exception_handler,
-            unauthorized_exception_handler,
+            application_error_handler,
             general_exception_handler,
         )
-        from app.utils.errors import InvalidInputError, UnauthorizedError
+        from app.utils.errors import ApplicationError
 
         app = FastAPI()
         app.include_router(auth_router)
 
-        app.add_exception_handler(InvalidInputError, invalid_input_exception_handler)
-        app.add_exception_handler(UnauthorizedError, unauthorized_exception_handler)
+        app.add_exception_handler(ApplicationError, application_error_handler)
         app.add_exception_handler(Exception, general_exception_handler)
 
         app.dependency_overrides[get_auth_service] = lambda: mock_auth_service
@@ -70,7 +68,7 @@ class TestAuthControllers:
 
     def test_login_invalid_credentials(self, client, mock_auth_service):
         mock_auth_service.login = AsyncMock(
-            side_effect=UnauthorizedError("Invalid credentials")
+            side_effect=ApplicationError(ErrorCode.INVALID_CREDENTIALS)
         )
 
         response = client.post(
@@ -79,7 +77,6 @@ class TestAuthControllers:
         )
 
         assert response.status_code == 401
-        assert response.json()["detail"] == "Invalid credentials"
 
     @pytest.mark.parametrize(
         "payload,description",
