@@ -19,6 +19,9 @@ class AuthService:
         except ApplicationError:
             raise ApplicationError(ErrorCode.INVALID_CREDENTIALS)
 
+        if user is None:
+            raise ApplicationError(ErrorCode.INVALID_CREDENTIALS)
+
         if not password_utils.verify_password(user.password, password):
             raise ApplicationError(ErrorCode.INVALID_CREDENTIALS)
 
