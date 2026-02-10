@@ -20,11 +20,6 @@ class UserService:
         self.booking_repo: BookingRepository = booking_repository
 
     async def register(self, user: User) -> None:
-        user.email = user.email.strip()
-        user.name = user.name.strip()
-        user.role = user.role.strip()
-        user.password = user.password.strip()
-
         existing: User | None = None
         try:
             existing = await self.user_repo.find_by_email(user.email)
@@ -66,10 +61,12 @@ class UserService:
                 ErrorCode.INVALID_INPUT, message="Superadmin accounts cannot be updated"
             )
 
-        if update_data.email and update_data.email != user.email:
+        update_dict = update_data.model_dump(exclude_unset=True)
+        
+        if "email" in update_dict and update_dict["email"] != user.email:
             existing: User | None = None
             try:
-                existing = await self.user_repo.find_by_email(update_data.email)
+                existing = await self.user_repo.find_by_email(update_dict["email"])
             except ApplicationError as e:
                 if e.error_code != ErrorCode.USER_NOT_FOUND:
                     raise
@@ -78,13 +75,9 @@ class UserService:
                 raise ApplicationError(
                     ErrorCode.USER_ALREADY_EXISTS, message="Email already in use"
                 )
-            user.email = update_data.email.strip()
-
-        if update_data.name:
-            user.name = update_data.name.strip()
-
-        if update_data.role:
-            user.role = update_data.role.strip()
+        
+        for field, value in update_dict.items():
+            setattr(user, field, value)
 
         user.updated_at = int(time.time())
         await self.user_repo.update(user, old_email=old_email)
