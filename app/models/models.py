@@ -20,6 +20,7 @@ class Room(BaseModel):
     floor: int
     amenities: List[str]
     status: str = "available"
+    is_occupied: bool = False
     location: str
     description: Optional[str] = None
     created_at: int = 0

@@ -3,13 +3,27 @@ import uuid
 import time
 from app.models.models import Room
 from app.repositories.rooms_repo import RoomRepository
+from app.repositories.bookings_repo import BookingRepository
 from app.utils.errors import ApplicationError, ErrorCode
 
 
 class RoomService:
 
-    def __init__(self, room_repository: RoomRepository) -> None:
+    def __init__(self, room_repository: RoomRepository, booking_repository: BookingRepository = None) -> None:
         self.room_repo: RoomRepository = room_repository
+        self.booking_repo: BookingRepository = booking_repository
+
+    def is_room_occupied(self, room_id: str, bookings: List = None) -> bool:
+        if not bookings or not self.booking_repo:
+            return False
+        
+        current_time = int(time.time())
+        for booking in bookings:
+            if (booking.room_id == room_id and 
+                booking.status.lower() == "confirmed" and
+                booking.start_time <= current_time < booking.end_time):
+                return True
+        return False
 
     async def add_room(self, room: Room) -> None:
         room.name = room.name.strip()
@@ -35,10 +49,26 @@ class RoomService:
 
     async def get_all_rooms(self) -> List[Room]:
         rooms: List[Room] = await self.room_repo.get_all()
-        return rooms if rooms else []
+        if not rooms:
+            return []
+        
+        if self.booking_repo:
+            current_time = int(time.time())
+            all_bookings = await self.booking_repo.get_all()
+            for room in rooms:
+                room.is_occupied = self.is_room_occupied(room.id, all_bookings)
+        
+        return rooms
 
     async def get_room_by_id(self, room_id: str) -> Room:
-        return await self.room_repo.get_by_id(room_id)
+        room = await self.room_repo.get_by_id(room_id)
+        
+        if self.booking_repo:
+            current_time = int(time.time())
+            room_bookings = await self.booking_repo.get_by_room_id(room_id)
+            room.is_occupied = self.is_room_occupied(room_id, room_bookings)
+        
+        return room
 
     async def update_room(self, room_id: str, update_data) -> None:
         room: Room = await self.room_repo.get_by_id(room_id)

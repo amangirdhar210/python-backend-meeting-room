@@ -25,7 +25,9 @@ def init_app_state(app_state):
     app_state.user_service = UserService(
         user_repository=app_state.user_repo, booking_repository=app_state.booking_repo
     )
-    app_state.room_service = RoomService(room_repository=app_state.room_repo)
+    app_state.room_service = RoomService(
+        room_repository=app_state.room_repo, booking_repository=app_state.booking_repo
+    )
     app_state.booking_service = BookingService(
         booking_repository=app_state.booking_repo,
         room_repository=app_state.room_repo,

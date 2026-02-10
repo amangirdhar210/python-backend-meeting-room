@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Path
 from typing import Optional, List
 from app.models.models import Room
 from app.models.dto import (
@@ -50,17 +50,17 @@ async def get_all_rooms(
     room_service: RoomServiceInstance,
 ) -> List[RoomDTO]:
     rooms: List[Room] = await room_service.get_all_rooms()
-    return [RoomDTO(**{**r.model_dump(), "status": r.status.lower()}) for r in rooms]
+    return [RoomDTO(**{**r.model_dump(), "status": r.status.lower(), "is_occupied": r.is_occupied}) for r in rooms]
 
 
 @rooms_router.get("/rooms/{id}", response_model=RoomDTO)
 async def get_room_by_id(
     req: Request,
-    id: str,
     room_service: RoomServiceInstance,
+    id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> RoomDTO:
     room: Room = await room_service.get_room_by_id(id)
-    return RoomDTO(**{**room.model_dump(), "status": room.status.lower()})
+    return RoomDTO(**{**room.model_dump(), "status": room.status.lower(), "is_occupied": room.is_occupied})
 
 
 @rooms_router.put(
@@ -70,9 +70,9 @@ async def get_room_by_id(
 )
 async def update_room(
     req: Request,
-    id: str,
     request: UpdateRoomRequest,
     room_service: RoomServiceInstance,
+    id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> GenericResponse:
     await room_service.update_room(id, request)
     return GenericResponse(message="room updated successfully")
@@ -85,8 +85,8 @@ async def update_room(
 )
 async def delete_room_by_id(
     req: Request,
-    id: str,
     room_service: RoomServiceInstance,
+    id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> GenericResponse:
     await room_service.delete_room_by_id(id)
     return GenericResponse(message="room deleted successfully")

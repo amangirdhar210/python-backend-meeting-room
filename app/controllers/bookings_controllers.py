@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Path
 from typing import List
 from app.models.models import Booking
 from app.models.dto import (
@@ -53,8 +53,8 @@ async def get_my_bookings(
 @bookings_router.get("/bookings/{booking_id}", response_model=BookingDTO)
 async def get_booking_by_id(
     req: Request,
-    booking_id: str,
     booking_service: BookingServiceInstance,
+    booking_id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> BookingDTO:
     booking: Booking = await booking_service.get_booking_by_id(booking_id)
     return BookingDTO(**{**booking.model_dump(), "status": booking.status.lower()})
@@ -63,10 +63,12 @@ async def get_booking_by_id(
 @bookings_router.delete("/bookings/{id}", response_model=GenericResponse)
 async def cancel_booking(
     req: Request,
-    id: str,
     booking_service: BookingServiceInstance,
+    id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> GenericResponse:
-    await booking_service.cancel_booking(id)
+    user_id: str = req.state.user.get("user_id")
+    user_role: str = req.state.user.get("role")
+    await booking_service.cancel_booking(id, user_id, user_role)
     return GenericResponse(message="booking cancelled successfully")
 
 
@@ -88,8 +90,8 @@ async def get_all_bookings(
 @bookings_router.get("/rooms/{room_id}/bookings", response_model=List[BookingDTO])
 async def get_bookings_by_room_id(
     req: Request,
-    room_id: str,
     booking_service: BookingServiceInstance,
+    room_id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> List[BookingDTO]:
     bookings: List[Booking] = await booking_service.get_bookings_by_room_id(room_id)
     return [
@@ -100,10 +102,10 @@ async def get_bookings_by_room_id(
 @bookings_router.get("/rooms/{room_id}/schedule", response_model=RoomScheduleDTO)
 async def get_room_schedule_by_date(
     req: Request,
-    room_id: str,
     booking_service: BookingServiceInstance,
+    room_id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
     date: str = Query(
-        ..., pattern=r"^\d{4}-\d{2}-\d{2}$", description="Date in YYYY-MM-DD format"
+        ..., min_length=10, max_length=10, pattern=r"^\d{4}-\d{2}-\d{2}$", description="Date in YYYY-MM-DD format"
     ),
 ) -> RoomScheduleDTO:
     schedule = await booking_service.get_room_schedule_by_date(room_id, date)

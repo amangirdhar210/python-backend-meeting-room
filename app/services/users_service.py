@@ -94,10 +94,15 @@ class UserService:
     ) -> None:
         if current_user_id and user_id == current_user_id:
             raise ApplicationError(
-                ErrorCode.INVALID_INPUT, message="You cannot delete your own account"
+                ErrorCode.INVALID_INPUT, message="You cannot delete yourself"
             )
 
         user_to_delete: User = await self.user_repo.get_by_id(user_id)
+        
+        if user_to_delete.email.lower() in settings.SUPERADMIN_EMAILS:
+            raise ApplicationError(
+                ErrorCode.INVALID_INPUT, message="Superadmin accounts cannot be deleted"
+            )
 
         if self.booking_repo:
             await self.booking_repo.delete_by_user_id(user_id)

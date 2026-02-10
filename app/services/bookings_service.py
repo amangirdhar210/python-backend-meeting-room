@@ -64,8 +64,15 @@ class BookingService:
     async def get_booking_by_id(self, booking_id: str) -> Booking:
         return await self.booking_repo.get_by_id(booking_id)
 
-    async def cancel_booking(self, booking_id: str) -> None:
+    async def cancel_booking(self, booking_id: str, user_id: str, user_role: str) -> None:
         booking: Booking = await self.booking_repo.get_by_id(booking_id)
+        
+        if user_role != "admin" and booking.user_id != user_id:
+            raise ApplicationError(
+                ErrorCode.INSUFFICIENT_PERMISSIONS,
+                message="You can only cancel your own bookings"
+            )
+        
         await self.booking_repo.cancel(booking_id)
 
     async def get_all_bookings(self) -> List[Booking]:

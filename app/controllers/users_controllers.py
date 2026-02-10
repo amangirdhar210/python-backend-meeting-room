@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Path
 from typing import List
 from app.models.models import User
 from app.models.dto import (
@@ -55,8 +55,8 @@ async def get_all_users(
 @users_router.get("/users/{user_id}", response_model=UserDTO)
 async def get_user_by_id(
     req: Request,
-    user_id: str,
     user_service: UserServiceInstance,
+    user_id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> UserDTO:
     user: User = await user_service.get_user_by_id(user_id)
     return UserDTO(**user.model_dump(exclude={"password"}))
@@ -69,9 +69,9 @@ async def get_user_by_id(
 )
 async def update_user(
     req: Request,
-    id: str,
     request: UpdateUserRequest,
     user_service: UserServiceInstance,
+    id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> GenericResponse:
     current_user_id: str = req.state.user.get("user_id")
     await user_service.update_user(id, request, current_user_id)
@@ -85,8 +85,8 @@ async def update_user(
 )
 async def delete_user_by_id(
     req: Request,
-    id: str,
     user_service: UserServiceInstance,
+    id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> GenericResponse:
     current_user_id: str = req.state.user.get("user_id")
     await user_service.delete_user_by_id(id, current_user_id)

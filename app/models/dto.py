@@ -1,9 +1,11 @@
-from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import Optional, List
 
 
 class LoginUserRequest(BaseModel):
-    email: EmailStr
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, str_min_length=1)
+    
+    email: EmailStr = Field(max_length=255)
     password: str = Field(min_length=1, max_length=200)
 
 
@@ -22,15 +24,19 @@ class LoginUserResponse(BaseModel):
 
 
 class RegisterUserRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    email: EmailStr
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, str_min_length=1)
+    
+    name: str = Field(min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9\s\-_.]+$")
+    email: EmailStr = Field(max_length=255)
     password: str = Field(min_length=6, max_length=200)
     role: str = Field(pattern="^(user|admin)$")
 
 
 class UpdateUserRequest(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    email: Optional[EmailStr] = None
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9\s\-_.]+$")
+    email: Optional[EmailStr] = Field(default=None, max_length=255)
     role: Optional[str] = Field(default=None, pattern="^(user|admin)$")
 
 
@@ -42,6 +48,7 @@ class RoomDTO(BaseModel):
     floor: int = Field(ge=0, le=200)
     amenities: List[str] = Field(default_factory=list)
     status: str = Field(pattern="^(available|unavailable|maintenance)$")
+    is_occupied: bool = False
     location: str = Field(min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=500)
     created_at: int = Field(gt=0)
@@ -50,47 +57,27 @@ class RoomDTO(BaseModel):
 
 
 class AddRoomRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, str_min_length=1)
+    
+    name: str = Field(min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9\s\-_.]+$")
     room_number: int = Field(gt=0, le=9999)
     capacity: int = Field(gt=0, le=1000)
     floor: int = Field(ge=0, le=200)
     amenities: List[str] = Field(default_factory=list, max_length=50)
-    status: Optional[str] = Field(
-        default="available", pattern="^(available|unavailable|maintenance)$"
-    )
+    status: Optional[str] = Field(default="available", pattern="^(available|unavailable|maintenance)$")
     location: str = Field(min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=500)
-    model_config = ConfigDict(populate_by_name=True)
-
-    @field_validator("amenities")
-    @classmethod
-    def validate_amenities(cls, v: List[str]) -> List[str]:
-        if v:
-            for amenity in v:
-                if not amenity or len(amenity) > 50:
-                    raise ValueError("Each amenity must be 1-50 characters")
-        return v
 
 
 class UpdateRoomRequest(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9\s\-_.]+$")
     capacity: Optional[int] = Field(default=None, gt=0, le=1000)
     amenities: Optional[List[str]] = Field(default=None, max_length=50)
-    status: Optional[str] = Field(
-        default=None, pattern="^(available|unavailable|maintenance)$"
-    )
+    status: Optional[str] = Field(default=None, pattern="^(available|unavailable|maintenance)$")
     location: Optional[str] = Field(default=None, min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=500)
-    model_config = ConfigDict(populate_by_name=True)
-
-    @field_validator("amenities")
-    @classmethod
-    def validate_amenities(cls, v: Optional[List[str]]) -> Optional[List[str]]:
-        if v:
-            for amenity in v:
-                if not amenity or len(amenity) > 50:
-                    raise ValueError("Each amenity must be 1-50 characters")
-        return v
 
 
 class BookingDTO(BaseModel):
@@ -106,26 +93,14 @@ class BookingDTO(BaseModel):
     created_at: int = Field(gt=0)
     updated_at: int = Field(gt=0)
 
-    @field_validator("end_time")
-    @classmethod
-    def validate_end_time(cls, v: int, info) -> int:
-        if "start_time" in info.data and v <= info.data["start_time"]:
-            raise ValueError("end_time must be after start_time")
-        return v
-
 
 class CreateBookingRequest(BaseModel):
-    room_id: str = Field(min_length=1)
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, str_min_length=1)
+    
+    room_id: str = Field(min_length=1, max_length=100)
     start_time: int = Field(gt=0)
     end_time: int = Field(gt=0)
-    purpose: str = Field(min_length=1, max_length=500)
-
-    @field_validator("end_time")
-    @classmethod
-    def validate_end_time(cls, v: int, info) -> int:
-        if "start_time" in info.data and v <= info.data["start_time"]:
-            raise ValueError("end_time must be after start_time")
-        return v
+    purpose: str = Field(min_length=1, max_length=500, pattern=r"^[a-zA-Z0-9\s\-_.,:;!?()\[\]{}/'\"&@#+]+$")
 
 
 class ScheduleSlotDTO(BaseModel):
@@ -146,20 +121,9 @@ class RoomScheduleResponse(BaseModel):
 
 
 class RoomScheduleRequest(BaseModel):
-    date: str = Field(
-        pattern=r"^\d{4}-\d{2}-\d{2}$", description="Date in YYYY-MM-DD format"
-    )
-
-    @field_validator("date")
-    @classmethod
-    def validate_date_format(cls, v: str) -> str:
-        from datetime import datetime
-
-        try:
-            datetime.strptime(v, "%Y-%m-%d")
-            return v
-        except ValueError:
-            raise ValueError("Invalid date. Must be a valid date in YYYY-MM-DD format")
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$", min_length=10, max_length=10, description="Date in YYYY-MM-DD format")
 
 
 class ErrorResponse(BaseModel):

@@ -1,0 +1,1114 @@
+---
+openapi: 3.1.0
+info:
+  title: Meeting Room Booking API
+  description: RESTful API for managing meeting room bookings, users, and rooms with
+    JWT authentication
+  version: 1.0.0
+paths:
+  "/login":
+    post:
+      tags:
+      - Authentication
+      summary: Login
+      operationId: login_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/LoginUserRequest"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/LoginUserResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/health":
+    get:
+      tags:
+      - Authentication
+      summary: Health Check
+      operationId: health_check_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Check Health Get
+  "/api/bookings":
+    post:
+      tags:
+      - Bookings
+      summary: Create Booking
+      operationId: create_booking_api_bookings_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateBookingRequest"
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GenericResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    get:
+      tags:
+      - Bookings
+      summary: Get All Bookings
+      operationId: get_all_bookings_api_bookings_get
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/BookingDTO"
+                title: Response Get All Bookings Api Bookings Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/bookings/my":
+    get:
+      tags:
+      - Bookings
+      summary: Get My Bookings
+      operationId: get_my_bookings_api_bookings_my_get
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/BookingDTO"
+                title: Response Get My Bookings Api Bookings My Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/bookings/{booking_id}":
+    get:
+      tags:
+      - Bookings
+      summary: Get Booking By Id
+      operationId: get_booking_by_id_api_bookings__booking_id__get
+      parameters:
+      - name: booking_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Booking Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BookingDTO"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/bookings/{id}":
+    delete:
+      tags:
+      - Bookings
+      summary: Cancel Booking
+      operationId: cancel_booking_api_bookings__id__delete
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GenericResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/rooms/{room_id}/bookings":
+    get:
+      tags:
+      - Bookings
+      summary: Get Bookings By Room Id
+      operationId: get_bookings_by_room_id_api_rooms__room_id__bookings_get
+      parameters:
+      - name: room_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Room Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/BookingDTO"
+                title: Response Get Bookings By Room Id Api Rooms  Room Id  Bookings
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/rooms/{room_id}/schedule":
+    get:
+      tags:
+      - Bookings
+      summary: Get Room Schedule By Date
+      operationId: get_room_schedule_by_date_api_rooms__room_id__schedule_get
+      parameters:
+      - name: room_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Room Id
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          description: Date in YYYY-MM-DD format
+          title: Date
+        description: Date in YYYY-MM-DD format
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RoomScheduleResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/rooms":
+    post:
+      tags:
+      - Rooms
+      summary: Add Room
+      operationId: add_room_api_rooms_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AddRoomRequest"
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GenericResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    get:
+      tags:
+      - Rooms
+      summary: Get All Rooms
+      operationId: get_all_rooms_api_rooms_get
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/RoomDTO"
+                title: Response Get All Rooms Api Rooms Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/rooms/{id}":
+    get:
+      tags:
+      - Rooms
+      summary: Get Room By Id
+      operationId: get_room_by_id_api_rooms__id__get
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RoomDTO"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    put:
+      tags:
+      - Rooms
+      summary: Update Room
+      operationId: update_room_api_rooms__id__put
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateRoomRequest"
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GenericResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    delete:
+      tags:
+      - Rooms
+      summary: Delete Room By Id
+      operationId: delete_room_by_id_api_rooms__id__delete
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GenericResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/users/register":
+    post:
+      tags:
+      - Users
+      summary: Register
+      operationId: register_api_users_register_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/RegisterUserRequest"
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GenericResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/users":
+    get:
+      tags:
+      - Users
+      summary: Get All Users
+      operationId: get_all_users_api_users_get
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/UserDTO"
+                title: Response Get All Users Api Users Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/users/{user_id}":
+    get:
+      tags:
+      - Users
+      summary: Get User By Id
+      operationId: get_user_by_id_api_users__user_id__get
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/UserDTO"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  "/api/users/{id}":
+    put:
+      tags:
+      - Users
+      summary: Update User
+      operationId: update_user_api_users__id__put
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateUserRequest"
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GenericResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+    delete:
+      tags:
+      - Users
+      summary: Delete User By Id
+      operationId: delete_user_by_id_api_users__id__delete
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GenericResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+components:
+  schemas:
+    AddRoomRequest:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+        room_number:
+          type: integer
+          maximum: 9999
+          exclusiveMinimum: 0
+          title: Room Number
+        capacity:
+          type: integer
+          maximum: 1000
+          exclusiveMinimum: 0
+          title: Capacity
+        floor:
+          type: integer
+          maximum: 200
+          minimum: 0
+          title: Floor
+        amenities:
+          items:
+            type: string
+          type: array
+          maxItems: 50
+          title: Amenities
+        status:
+          anyOf:
+          - type: string
+            pattern: "^(available|unavailable|maintenance)$"
+          - type: 'null'
+          title: Status
+          default: available
+        location:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Location
+        description:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Description
+      type: object
+      required:
+      - name
+      - room_number
+      - capacity
+      - floor
+      - location
+      title: AddRoomRequest
+    BookingDTO:
+      properties:
+        id:
+          type: string
+          minLength: 1
+          title: Id
+        user_id:
+          type: string
+          minLength: 1
+          title: User Id
+        user_name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: User Name
+        room_id:
+          type: string
+          minLength: 1
+          title: Room Id
+        room_number:
+          type: integer
+          exclusiveMinimum: 0
+          title: Room Number
+        start_time:
+          type: integer
+          exclusiveMinimum: 0
+          title: Start Time
+        end_time:
+          type: integer
+          exclusiveMinimum: 0
+          title: End Time
+        purpose:
+          type: string
+          maxLength: 500
+          minLength: 1
+          title: Purpose
+        status:
+          type: string
+          pattern: "^(confirmed|cancelled)$"
+          title: Status
+        created_at:
+          type: integer
+          exclusiveMinimum: 0
+          title: Created At
+        updated_at:
+          type: integer
+          exclusiveMinimum: 0
+          title: Updated At
+      type: object
+      required:
+      - id
+      - user_id
+      - user_name
+      - room_id
+      - room_number
+      - start_time
+      - end_time
+      - purpose
+      - status
+      - created_at
+      - updated_at
+      title: BookingDTO
+    CreateBookingRequest:
+      properties:
+        room_id:
+          type: string
+          minLength: 1
+          title: Room Id
+        start_time:
+          type: integer
+          exclusiveMinimum: 0
+          title: Start Time
+        end_time:
+          type: integer
+          exclusiveMinimum: 0
+          title: End Time
+        purpose:
+          type: string
+          maxLength: 500
+          minLength: 1
+          title: Purpose
+      type: object
+      required:
+      - room_id
+      - start_time
+      - end_time
+      - purpose
+      title: CreateBookingRequest
+    GenericResponse:
+      properties:
+        message:
+          type: string
+          minLength: 1
+          title: Message
+      type: object
+      required:
+      - message
+      title: GenericResponse
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            "$ref": "#/components/schemas/ValidationError"
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LoginUserRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Password
+      type: object
+      required:
+      - email
+      - password
+      title: LoginUserRequest
+    LoginUserResponse:
+      properties:
+        token:
+          type: string
+          minLength: 1
+          title: Token
+        user:
+          "$ref": "#/components/schemas/UserDTO"
+      type: object
+      required:
+      - token
+      - user
+      title: LoginUserResponse
+    RegisterUserRequest:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 200
+          minLength: 6
+          title: Password
+        role:
+          type: string
+          pattern: "^(user|admin)$"
+          title: Role
+      type: object
+      required:
+      - name
+      - email
+      - password
+      - role
+      title: RegisterUserRequest
+    RoomDTO:
+      properties:
+        id:
+          type: string
+          minLength: 1
+          title: Id
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+        room_number:
+          type: integer
+          exclusiveMinimum: 0
+          title: Room Number
+        capacity:
+          type: integer
+          maximum: 1000
+          exclusiveMinimum: 0
+          title: Capacity
+        floor:
+          type: integer
+          maximum: 200
+          minimum: 0
+          title: Floor
+        amenities:
+          items:
+            type: string
+          type: array
+          title: Amenities
+        status:
+          type: string
+          pattern: "^(available|unavailable|maintenance)$"
+          title: Status
+        location:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Location
+        description:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Description
+        created_at:
+          type: integer
+          exclusiveMinimum: 0
+          title: Created At
+        updated_at:
+          type: integer
+          exclusiveMinimum: 0
+          title: Updated At
+      type: object
+      required:
+      - id
+      - name
+      - room_number
+      - capacity
+      - floor
+      - status
+      - location
+      - created_at
+      - updated_at
+      title: RoomDTO
+    RoomScheduleResponse:
+      properties:
+        room_id:
+          type: string
+          minLength: 1
+          title: Room Id
+        room_name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Room Name
+        room_number:
+          type: integer
+          exclusiveMinimum: 0
+          title: Room Number
+        date:
+          type: integer
+          exclusiveMinimum: 0
+          title: Date
+        bookings:
+          items:
+            "$ref": "#/components/schemas/ScheduleSlotDTO"
+          type: array
+          title: Bookings
+      type: object
+      required:
+      - room_id
+      - room_name
+      - room_number
+      - date
+      title: RoomScheduleResponse
+    ScheduleSlotDTO:
+      properties:
+        start_time:
+          type: integer
+          exclusiveMinimum: 0
+          title: Start Time
+        end_time:
+          type: integer
+          exclusiveMinimum: 0
+          title: End Time
+        is_booked:
+          type: boolean
+          title: Is Booked
+        booking_id:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Booking Id
+        user_name:
+          anyOf:
+          - type: string
+            maxLength: 100
+            minLength: 1
+          - type: 'null'
+          title: User Name
+        purpose:
+          anyOf:
+          - type: string
+            maxLength: 500
+            minLength: 1
+          - type: 'null'
+          title: Purpose
+      type: object
+      required:
+      - start_time
+      - end_time
+      - is_booked
+      title: ScheduleSlotDTO
+    UpdateRoomRequest:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 100
+            minLength: 1
+          - type: 'null'
+          title: Name
+        capacity:
+          anyOf:
+          - type: integer
+            maximum: 1000
+            exclusiveMinimum: 0
+          - type: 'null'
+          title: Capacity
+        amenities:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 50
+          - type: 'null'
+          title: Amenities
+        status:
+          anyOf:
+          - type: string
+            pattern: "^(available|unavailable|maintenance)$"
+          - type: 'null'
+          title: Status
+        location:
+          anyOf:
+          - type: string
+            maxLength: 200
+            minLength: 1
+          - type: 'null'
+          title: Location
+        description:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Description
+      type: object
+      title: UpdateRoomRequest
+    UpdateUserRequest:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 100
+            minLength: 1
+          - type: 'null'
+          title: Name
+        email:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: Email
+        role:
+          anyOf:
+          - type: string
+            pattern: "^(user|admin)$"
+          - type: 'null'
+          title: Role
+      type: object
+      title: UpdateUserRequest
+    UserDTO:
+      properties:
+        id:
+          type: string
+          minLength: 1
+          title: Id
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+        email:
+          type: string
+          format: email
+          title: Email
+        role:
+          type: string
+          pattern: "^(user|admin)$"
+          title: Role
+        created_at:
+          type: integer
+          exclusiveMinimum: 0
+          title: Created At
+        updated_at:
+          type: integer
+          exclusiveMinimum: 0
+          title: Updated At
+      type: object
+      required:
+      - id
+      - name
+      - email
+      - role
+      - created_at
+      - updated_at
+      title: UserDTO
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
