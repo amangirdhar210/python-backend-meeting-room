@@ -27,6 +27,10 @@ async def create_booking(
     request: CreateBookingRequest,
     booking_service: BookingServiceInstance,
 ) -> GenericResponse:
+    user_role = req.state.user.get("role")
+    if user_role == "admin":
+        raise ApplicationError(ErrorCode.FORBIDDEN, "Admins are not allowed to book rooms")
+    
     booking: Booking = Booking(
         user_id=req.state.user.get("user_id"),
         room_id=request.room_id,

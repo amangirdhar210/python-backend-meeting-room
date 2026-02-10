@@ -29,5 +29,6 @@ async def set_current_user(
 async def require_admin_state(request: Request) -> None:
     if not hasattr(request.state, "user"):
         raise HTTPException(status_code=401, detail="unauthorized")
-    if request.state.user.get("role") != "admin":
+    user_role = request.state.user.get("role")
+    if user_role not in ["admin", "superadmin"]:
         raise HTTPException(status_code=403, detail="forbidden")

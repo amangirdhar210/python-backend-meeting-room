@@ -40,6 +40,8 @@ class UserService:
 
     async def get_all_users(self) -> List[User]:
         users: List[User] = await self.user_repo.get_all()
+        if users:
+            users = [user for user in users if user.role != "superadmin"]
         return users if users else []
 
     async def get_user_by_id(self, user_id: str) -> User:
@@ -56,7 +58,7 @@ class UserService:
                 ErrorCode.INVALID_INPUT, message="You cannot edit your own account"
             )
 
-        if user.email.lower() in settings.SUPERADMIN_EMAILS:
+        if user.role == "superadmin":
             raise ApplicationError(
                 ErrorCode.INVALID_INPUT, message="Superadmin accounts cannot be updated"
             )
@@ -92,7 +94,7 @@ class UserService:
 
         user_to_delete: User = await self.user_repo.get_by_id(user_id)
         
-        if user_to_delete.email.lower() in settings.SUPERADMIN_EMAILS:
+        if user_to_delete.role == "superadmin":
             raise ApplicationError(
                 ErrorCode.INVALID_INPUT, message="Superadmin accounts cannot be deleted"
             )
