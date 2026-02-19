@@ -31,6 +31,10 @@ async def register(
     request: RegisterUserRequest,
     user_service: UserServiceInstance,
 ) -> GenericResponse:
+    current_role = req.state.user.get("role")
+    if request.role in ["admin", "superadmin"] and current_role != "superadmin":
+        raise ApplicationError(ErrorCode.FORBIDDEN, "Only superadmins can create admin accounts")
+    
     user: User = User(
         name=request.name,
         email=request.email,
@@ -48,7 +52,8 @@ async def get_all_users(
     req: Request,
     user_service: UserServiceInstance,
 ) -> List[UserDTO]:
-    users: List[User] = await user_service.get_all_users()
+    current_role = req.state.user.get("role")
+    users: List[User] = await user_service.get_all_users(current_role)
     return [UserDTO(**u.model_dump(exclude={"password"})) for u in users]
 
 
@@ -74,7 +79,8 @@ async def update_user(
     id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> GenericResponse:
     current_user_id: str = req.state.user.get("user_id")
-    await user_service.update_user(id, request, current_user_id)
+    current_role: str = req.state.user.get("role")
+    await user_service.update_user(id, request, current_user_id, current_role)
     return GenericResponse(message="user updated successfully")
 
 
@@ -89,5 +95,6 @@ async def delete_user_by_id(
     id: str = Path(min_length=1, max_length=100, pattern="^[a-zA-Z0-9-]+$"),
 ) -> GenericResponse:
     current_user_id: str = req.state.user.get("user_id")
-    await user_service.delete_user_by_id(id, current_user_id)
+    current_role: str = req.state.user.get("role")
+    await user_service.delete_user_by_id(id, current_user_id, current_role)
     return GenericResponse(message="user deleted successfully")

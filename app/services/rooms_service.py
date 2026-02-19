@@ -47,7 +47,12 @@ class RoomService:
             current_time = int(time.time())
             all_bookings = await self.booking_repo.get_all()
             for room in rooms:
-                room.is_occupied = self.is_room_occupied(room.id, all_bookings)
+                is_occupied = self.is_room_occupied(room.id, all_bookings)
+                room.is_occupied = is_occupied
+                if is_occupied:
+                    room.status = "unavailable"
+                elif room.status == "unavailable":
+                    room.status = "available"
         
         return rooms
 
@@ -57,7 +62,12 @@ class RoomService:
         if self.booking_repo:
             current_time = int(time.time())
             room_bookings = await self.booking_repo.get_by_room_id(room_id)
-            room.is_occupied = self.is_room_occupied(room_id, room_bookings)
+            is_occupied = self.is_room_occupied(room_id, room_bookings)
+            room.is_occupied = is_occupied
+            if is_occupied:
+                room.status = "unavailable"
+            elif room.status == "unavailable":
+                room.status = "available"
         
         return room
 

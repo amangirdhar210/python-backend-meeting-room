@@ -20,3 +20,12 @@ htmlcov
 temp.txt
 tmp.py
 .DS_Store
+.git
+.gitignore
+README.md
+tests
+conftest.py
+deploy
+mypy.ini
+openapi.yaml
+.env.example

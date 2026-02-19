@@ -59,7 +59,8 @@ class BookingRepository:
 
     async def get_all(self) -> List[Booking]:
         response = await asyncio.to_thread(
-            self.table.query, KeyConditionExpression=Key("PK").eq("BOOKING")
+            self.table.query,
+            KeyConditionExpression=Key("PK").eq("BOOKING") & Key("SK").begins_with("BOOKING#")
         )
         return self._unmarshal_bookings(response.get("Items", []))
 

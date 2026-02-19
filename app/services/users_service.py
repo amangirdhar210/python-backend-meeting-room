@@ -38,17 +38,21 @@ class UserService:
 
         await self.user_repo.create(user)
 
-    async def get_all_users(self) -> List[User]:
+    async def get_all_users(self, current_role: str) -> List[User]:
         users: List[User] = await self.user_repo.get_all()
-        if users:
-            users = [user for user in users if user.role != "superadmin"]
-        return users if users else []
+        if not users:
+            return []
+        
+        if current_role == "superadmin":
+            return users
+        else:
+            return [user for user in users if user.role == "user"]
 
     async def get_user_by_id(self, user_id: str) -> User:
         return await self.user_repo.get_by_id(user_id)
 
     async def update_user(
-        self, user_id: str, update_data, current_user_id: Optional[str] = None
+        self, user_id: str, update_data, current_user_id: Optional[str] = None, current_role: str = "admin"
     ) -> None:
         user: User = await self.user_repo.get_by_id(user_id)
         old_email = user.email
@@ -61,6 +65,11 @@ class UserService:
         if user.role == "superadmin":
             raise ApplicationError(
                 ErrorCode.INVALID_INPUT, message="Superadmin accounts cannot be updated"
+            )
+        
+        if current_role == "admin" and user.role == "admin":
+            raise ApplicationError(
+                ErrorCode.FORBIDDEN, message="Admins cannot modify other admin accounts"
             )
 
         update_dict = update_data.model_dump(exclude_unset=True)
@@ -85,7 +94,7 @@ class UserService:
         await self.user_repo.update(user, old_email=old_email)
 
     async def delete_user_by_id(
-        self, user_id: str, current_user_id: Optional[str] = None
+        self, user_id: str, current_user_id: Optional[str] = None, current_role: str = "admin"
     ) -> None:
         if current_user_id and user_id == current_user_id:
             raise ApplicationError(
@@ -97,6 +106,11 @@ class UserService:
         if user_to_delete.role == "superadmin":
             raise ApplicationError(
                 ErrorCode.INVALID_INPUT, message="Superadmin accounts cannot be deleted"
+            )
+        
+        if current_role == "admin" and user_to_delete.role == "admin":
+            raise ApplicationError(
+                ErrorCode.FORBIDDEN, message="Only superadmins can delete admin accounts"
             )
 
         if self.booking_repo:

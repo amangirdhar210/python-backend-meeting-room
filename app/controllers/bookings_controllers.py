@@ -81,7 +81,8 @@ async def get_all_bookings(
     req: Request,
     booking_service: BookingServiceInstance,
 ) -> List[BookingDTO]:
-    if req.state.user.get("role") == "admin":
+    user_role = req.state.user.get("role")
+    if user_role in ["admin", "superadmin"]:
         bookings: List[Booking] = await booking_service.get_all_bookings()
     else:
         user_id: str = req.state.user.get("user_id")
